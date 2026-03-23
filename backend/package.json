@@ -12,11 +12,24 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "axios": "^1.13.6",
     "bcrypt": "^6.0.0",
+    "cheerio": "^1.2.0",
     "cors": "^2.8.5",
+    "cron-parser": "^5.5.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "groq-sdk": "^0.37.0",
+    "ioredis": "^5.10.0",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.0.2"
+    "moment-timezone": "^0.6.0",
+    "mongoose": "^9.0.2",
+    "node-fetch": "^3.3.2",
+    "nodemailer": "^8.0.1",
+    "openai": "^6.27.0",
+    "puppeteer": "^24.38.0",
+    "resend": "^6.9.3",
+    "user-agents": "^1.1.669"
   }
 }

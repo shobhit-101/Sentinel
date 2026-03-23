@@ -2,16 +2,23 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const mongoose= require("mongoose");
-
+const cronParser = require('cron-parser');
 const Job = require("./models/Job");
 const User = require("./models/User");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const auth = require("./middleware/auth");
+const moment = require('moment-timezone');
+const Redis = require("ioredis");
 const app = express();
 app.use(cors()); // Enable CORS for all routes
 app.use(express.json());// middleware to parse JSON bodies
 
+// 1. Connect to the local Docker Redis bubble
+const redis = new Redis({
+  host: "127.0.0.1",
+  port: 6379,
+});
 app.post("/auth/signup",async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -93,30 +100,55 @@ app.get("/jobs",auth, async (req, res) => {
     });
   }
 });
-
-app.post("/jobs",auth, async (req, res) => {
+app.post("/jobs", auth, async (req, res) => {
   try {
-    const { text , scheduledAt} = req.body;
+    // 1. Extract all fields, including the new timezone field
+    const { jobType, payload, scheduledAt, cronExpression, timezone } = req.body;
 
-    if (!text || !text.trim()) {
+    // 2. Update validation for the new fields
+    if (!jobType || !payload) {
       return res.status(400).json({
         success: false,
-        error: "Text is required"
+        error: "Both jobType and payload are required"
       });
     }
 
-     const job = await Job.create({
-    text,
-    user: req.userId,
-    status: "pending",
-    scheduledAt: scheduledAt? new Date(scheduledAt): null
-  });
+    // 3. Timezone & Scheduling Logic
+    const userTz = timezone || "UTC"; // Default to UTC if not provided
+    let finalScheduledAt = new Date(); // Defaults to right now (UTC)
+
+    // 🌐 STATIC TASK TIMEZONE CONVERSION
+    if (scheduledAt) {
+      // Translate the provided date string and timezone into pure UTC
+      finalScheduledAt = moment.tz(scheduledAt, userTz).toDate();
+    }
+
+    // 4. Create the job using the updated schema fields
+    const job = await Job.create({
+      jobType,
+      payload,
+      cronExpression, 
+      timezone: userTz, // Save their timezone preference for future CRON clones
+      user: req.userId,
+      status: "pending",
+      scheduledAt: finalScheduledAt // Save the pure UTC date
+    });
 
     res.status(201).json({
       success: true,
       data: job
     });
   } catch (err) {
+    // 5. Catch Mongoose Enum Validation Errors specifically
+    if (err.name === "ValidationError") {
+      return res.status(400).json({
+        success: false,
+        error: err.message // Tells the user if they used an invalid jobType
+      });
+    }
+
+    // 6. Standard fallback error
+    console.error("Error creating job:", err);
     res.status(500).json({
       success: false,
       error: "Server error"
@@ -125,22 +157,26 @@ app.post("/jobs",auth, async (req, res) => {
 });
 
 
-// app.delete("/tasks/:id", (req, res) => {
-//   const { id } = req.params;
+// GET /stats - Fetch User Telemetry for Dashboard
+app.get("/stats", auth, async (req, res) => {
+  try {
+    const successCount = await redis.get(`telemetry:${req.userId}:success`) || 0;
+    const failedCount = await redis.get(`telemetry:${req.userId}:failed`) || 0;
+    const activeJobs = await Job.countDocuments({ user: req.userId, status: "pending" });
 
-//   // validation
-//   const initialLength = tasks.length;
-//   tasks = tasks.filter(task => task.id !== id);
+    res.json({
+      success: true,
+      data: {
+        tasksExecuted: parseInt(successCount),
+        tasksFailed: parseInt(failedCount),
+        activeMonitors: activeJobs
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Stats error" });
+  }
+});
 
-//   if (tasks.length === initialLength) {
-//     return res.status(404).json({
-//       success: false,
-//       error: "Task not found"
-//     });
-//   }
-//   //response for successful deletion
-//   res.json({ success: true });
-// });
 
 app.delete("/jobs/:id",auth, async (req, res) => {
   try {
@@ -205,7 +241,7 @@ app.put("/jobs/:id",auth, async (req, res) => {
       });
     }
 
-    job.status = job.status === "pending" ? "completed" : "pending";
+    job.status = job.status === "pending" ? "paused" : "pending";
     await job.save();
 
     res.json({
@@ -221,6 +257,68 @@ app.put("/jobs/:id",auth, async (req, res) => {
 });
 
 
+
+
+
+// ==========================================
+// 🏗️ THE SENTINEL POLLER (Leader)
+// ==========================================
+const POLLING_INTERVAL = 5000; // 5 seconds
+
+setInterval(async () => {
+  try {
+    // 2. Ask Mongo: Are there any pending jobs where the scheduled time has passed?
+    const dueJobs = await Job.find({
+      status: "pending",
+      scheduledAt: { $lte: new Date() } // $lte = Less Than or Equal To right now
+    });
+
+    if (dueJobs.length > 0) {
+      console.log(`[Poller] Found ${dueJobs.length} due tasks. Moving to Conveyor Belt...`);
+    }
+
+    // 3. Move each job to Redis
+    for (const job of dueJobs) {
+      // Push to a Redis Stream named "sentinel:tasks"
+      await redis.xadd(
+        "sentinel:tasks", 
+        "*", // Tells Redis to auto-generate a unique ID for this message
+        "jobId", job._id.toString(), 
+        "jobType", job.jobType
+      );
+
+      // 4. Update the database so we don't pick it up again
+      job.status = "queued";
+      await job.save();
+      
+      console.log(`[Poller] Task ${job._id} successfully queued in Redis.`);
+    }
+  } catch (err) {
+    console.error("[Poller] Error fetching due jobs:", err);
+  }
+}, POLLING_INTERVAL);
+
+// ==========================================
+// 🗑️ THE GARBAGE COLLECTOR (Runs every 1 hour)
+// ==========================================
+setInterval(async () => {
+  try {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    // Delete jobs that are completed/failed and older than 7 days
+    const result = await Job.deleteMany({
+      status: { $in: ["completed", "failed"] },
+      completedAt: { $lt: sevenDaysAgo } 
+    });
+
+    if (result.deletedCount > 0) {
+      console.log(`[Garbage Collector] 🧹 Swept ${result.deletedCount} old jobs from the database.`);
+    }
+  } catch (err) {
+    console.error("[Garbage Collector] Error:", err);
+  }
+}, 60 * 60 * 1000); // 1 hour
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log("MongoDB connected");
