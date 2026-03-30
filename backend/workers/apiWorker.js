@@ -5,9 +5,37 @@ module.exports = {
     const { type, symbol } = job.payload;
     const apiKey = process.env.NINJAS_API_KEY;
 
-    console.log(`[API-Worker] Fetching ${type} data for ${symbol}...`);
+    console.log(`[API-Worker] Fetching ${type} data...`);
 
     try {
+      // 🌟 PHASE 2: CODEFORCES API (Observer Mode)
+      if (type === 'codeforces') {
+        const url = 'https://codeforces.com/api/contest.list';
+        const response = await axios.get(url);
+        
+        if (response.data.status !== 'OK') throw new Error("Codeforces API failed");
+
+        // Find the next upcoming contest
+        const upcoming = response.data.result
+          .filter(c => c.phase === 'BEFORE')
+          .sort((a, b) => a.startTimeSeconds - b.startTimeSeconds)[0];
+
+        if (!upcoming) {
+          return { value: "No upcoming contests scheduled.", source: "codeforces", timestamp: new Date() };
+        }
+
+        // Convert unix timestamp to readable string
+        const contestDate = new Date(upcoming.startTimeSeconds * 1000).toLocaleString();
+        const valueString = `${upcoming.name} (${contestDate})`;
+
+        console.log(`[API-Worker] ✅ Captured Codeforces: ${valueString}`);
+        return {
+          value: valueString, // Observer mode handles strings safely!
+          source: "codeforces_api",
+          timestamp: new Date()
+        };
+      }
+
       // 🌟 THE HACK: If the user asks for "binance_gold", use the public crypto API
       if (type === 'binance_gold') {
         const url = 'https://api.binance.com/api/v3/ticker/price?symbol=PAXGUSDT';
@@ -15,7 +43,7 @@ module.exports = {
         
         console.log(`[API-Worker] ✅ Captured Binance PAXG (Gold): $${response.data.price}`);
         return {
-          value: parseFloat(response.data.price), // Strictly typed as a Number
+          value: parseFloat(response.data.price), 
           source: "binance_public_api",
           timestamp: new Date()
         };
@@ -35,7 +63,6 @@ module.exports = {
       const response = await axios.get(url, { headers: { 'X-Api-Key': apiKey } });
       const rawValue = response.data.price;
 
-      // Ensure the API actually found the ticker and returned a price
       if (rawValue === undefined || rawValue === null) {
         throw new Error(`API returned no price for symbol: ${symbol}`);
       }
@@ -45,7 +72,7 @@ module.exports = {
       console.log(`[API-Worker] ✅ Captured: $${numericValue}`);
       
       return { 
-        value: numericValue, // Guard worker requires a strict Number
+        value: numericValue, 
         source: "api_ninjas", 
         timestamp: new Date() 
       };

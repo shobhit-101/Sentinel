@@ -12,10 +12,9 @@ const User = require("./models/User");
 const auth = require("./middleware/auth");
 
 const app = express();
-app.use(cors()); // Enable CORS for all routes
-app.use(express.json()); // Middleware to parse JSON bodies
+app.use(cors()); 
+app.use(express.json()); 
 
-// 1. Connect to Redis (With cloud fallback)
 const redis = new Redis({
   host: process.env.REDIS_HOST || "127.0.0.1",
   port: process.env.REDIS_PORT || 6379,
@@ -163,6 +162,28 @@ app.put("/jobs/:id", auth, async (req, res) => {
   }
 });
 
+// 🌟 PHASE 3: NEW ROUTE TO INSTANTLY COMPLETE/UNCOMPLETE STATIC TASKS
+app.put("/jobs/:id/complete", auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const job = await Job.findOne({ _id: id, user: req.userId });
+
+    if (!job) {
+      return res.status(404).json({ success: false, error: "Job not found" });
+    }
+
+    // Toggle logic
+    job.status = job.status === "completed" ? "pending" : "completed";
+    job.completedAt = job.status === "completed" ? new Date() : null;
+    
+    await job.save();
+
+    res.json({ success: true, data: job });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
 // ==========================================
 // 📊 DASHBOARD TELEMETRY ROUTE
 // ==========================================
@@ -171,7 +192,6 @@ app.get("/stats", auth, async (req, res) => {
     const successCount = await redis.get(`telemetry:${req.userId}:success`) || 0;
     const failedCount = await redis.get(`telemetry:${req.userId}:failed`) || 0;
     
-    // 🌟 FIX: Include all active states so the UI doesn't flicker when tasks run
     const activeJobs = await Job.countDocuments({ 
       user: req.userId, 
       status: { $in: ["pending", "queued", "processing", "paused"] } 
@@ -193,11 +213,10 @@ app.get("/stats", auth, async (req, res) => {
 // ==========================================
 // 🏗️ THE SENTINEL POLLER (Leader)
 // ==========================================
-const POLLING_INTERVAL = 5000; // 5 seconds
+const POLLING_INTERVAL = 5000; 
 
 setInterval(async () => {
   try {
-    // Ask Mongo: Are there any pending jobs where the scheduled time has passed?
     const dueJobs = await Job.find({
       status: "pending",
       scheduledAt: { $lte: new Date() } 
@@ -207,7 +226,6 @@ setInterval(async () => {
       console.log(`[Poller] Found ${dueJobs.length} due tasks. Moving to Conveyor Belt...`);
     }
 
-    // Move each job to Redis
     for (const job of dueJobs) {
       await redis.xadd(
         "sentinel:tasks", 
@@ -245,7 +263,7 @@ setInterval(async () => {
   } catch (err) {
     console.error("[Garbage Collector] Error:", err);
   }
-}, 60 * 60 * 1000); // 1 hour
+}, 60 * 60 * 1000); 
 
 // ==========================================
 // 🚀 SERVER START
