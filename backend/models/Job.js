@@ -5,7 +5,6 @@ const jobSchema = new mongoose.Schema({
   jobType: { 
     type: String,
     required: true,
-    // Synchronized with our 4 "Elite" themes
     enum: [
       'send_email', 
       'price_scraper',
@@ -26,20 +25,35 @@ const jobSchema = new mongoose.Schema({
   // 3. THE LIFECYCLE (State Machine)
   status: {
     type: String,
-    enum: ['pending', 'queued', 'processing', 'completed', 'failed'],
+    // 🌟 ADDED 'paused' to prevent frontend crash when pausing tasks!
+    enum: ['pending', 'paused', 'queued', 'processing', 'completed', 'failed'],
     default: "pending"
   },
   
-  // 4. THE OUTPUT (Where the "finds" are stored)
+  // 4. THE OUTPUT (Observability for the Dashboard)
   resultData: {
     type: mongoose.Schema.Types.Mixed,
-    default: null // This will hold the AI summary, the scraped price, etc.
+    default: null 
+  },
+  lastResult: { 
+    type: mongoose.Schema.Types.Mixed // Allows saving JSON objects from our AI Analyst
+  }, 
+  lastRunAt: { 
+    type: Date 
   },
   
   // 5. WHEN to do it
   scheduledAt: {
     type: Date,
     default: Date.now 
+  },
+  cronExpression: { 
+    type: String,
+    required: false
+  },
+  timezone: { 
+    type: String,
+    default: "UTC"
   },
 
   // 6. RESILIENCE (Exponential Backoff & DLQ)
@@ -55,11 +69,6 @@ const jobSchema = new mongoose.Schema({
     type: String,
     default: null
   },
-  // 🌟 THE CRON FIELD (Optional)
-  cronExpression: { // 🌟 ADD THIS FIELD
-    type: String,
-    required: false
-  },
 
   // 7. OWNERSHIP
   user: {
@@ -67,16 +76,10 @@ const jobSchema = new mongoose.Schema({
     ref: "User",
     required: true
   },
-  timezone: { // 🌟 ADD THIS
-    type: String,
-    default: "UTC"
-  },
   completedAt: {
     type: Date,
     required: false
-  },
-  lastResult: { type: mongoose.Schema.Types.Mixed }, // 'Mixed' allows saving objects, strings, or numbers!
-  lastRunAt: { type: Date },
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model("Job", jobSchema);

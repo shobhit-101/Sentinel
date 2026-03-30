@@ -28,7 +28,7 @@
     "node-fetch": "^3.3.2",
     "nodemailer": "^8.0.1",
     "openai": "^6.27.0",
-    "puppeteer": "^24.38.0",
+    "puppeteer": "^24.40.0",
     "resend": "^6.9.3",
     "user-agents": "^1.1.669"
   }

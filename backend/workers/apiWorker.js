@@ -15,7 +15,7 @@ module.exports = {
         
         console.log(`[API-Worker] ✅ Captured Binance PAXG (Gold): $${response.data.price}`);
         return {
-          value: parseFloat(response.data.price),
+          value: parseFloat(response.data.price), // Strictly typed as a Number
           source: "binance_public_api",
           timestamp: new Date()
         };
@@ -35,8 +35,20 @@ module.exports = {
       const response = await axios.get(url, { headers: { 'X-Api-Key': apiKey } });
       const rawValue = response.data.price;
 
-      console.log(`[API-Worker] ✅ Captured: ${rawValue}`);
-      return { value: rawValue, source: "api_ninjas", timestamp: new Date() };
+      // Ensure the API actually found the ticker and returned a price
+      if (rawValue === undefined || rawValue === null) {
+        throw new Error(`API returned no price for symbol: ${symbol}`);
+      }
+
+      const numericValue = parseFloat(rawValue);
+
+      console.log(`[API-Worker] ✅ Captured: $${numericValue}`);
+      
+      return { 
+        value: numericValue, // Guard worker requires a strict Number
+        source: "api_ninjas", 
+        timestamp: new Date() 
+      };
 
     } catch (err) {
       console.error(`[API-Worker] ❌ Failed: ${err.message}`);

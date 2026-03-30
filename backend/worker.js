@@ -3,7 +3,8 @@ const mongoose = require("mongoose");
 const Redis = require("ioredis");
 const Job = require("./models/Job");
 const { CronExpressionParser } = require('cron-parser');
-// 1. Import Specialist Workers (Strategy Pattern)
+
+// 1. Import Specialist Workers
 const apiWorker = require('./workers/apiWorker');
 const scrapeWorker = require('./workers/scraperWorker');
 const summaryWorker = require('./workers/summaryWorker');
@@ -19,10 +20,9 @@ const redis = new Redis({
 const GROUP_NAME = "sentinel_workers";
 const CONSUMER_NAME = "worker_1";
 
-// 3. Infrastructure Setup (Redis Group & MongoDB)
+// 3. Infrastructure Setup
 async function setupInfrastructure() {
   try {
-    // Connect to MongoDB
     await mongoose.connect(process.env.MONGO_URI);
     console.log("[Worker] Connected to MongoDB");
   } catch (err) {
@@ -30,13 +30,10 @@ async function setupInfrastructure() {
   }
 
   try {
-    // Create Consumer Group (MKSTREAM creates the stream if missing)
     await redis.xgroup("CREATE", "sentinel:tasks", GROUP_NAME, "0", "MKSTREAM");
     console.log(`[Worker] Consumer Group "${GROUP_NAME}" initialized.`);
   } catch (err) {
-    if (err.message.includes("BUSYGROUP")) {
-      // It is perfectly normal for the group to already exist
-    } else {
+    if (!err.message.includes("BUSYGROUP")) {
       console.error("[Worker] Redis Setup Error:", err);
     }
   }
@@ -49,7 +46,6 @@ async function processTasks() {
 
   while (true) {
     try {
-      // READ FROM GROUP: ">" ensures we get tasks never assigned to others
       const result = await redis.xreadgroup(
         "GROUP", GROUP_NAME, CONSUMER_NAME,
         "BLOCK", 0,
@@ -67,7 +63,6 @@ async function processTasks() {
 
         const job = await Job.findById(jobId);
 
-        // SHIELD: Clean up Redis if the job is deleted or already finished
         if (!job || ["completed", "failed"].includes(job.status)) {
           await redis.xack("sentinel:tasks", GROUP_NAME, redisId);
           await redis.xdel("sentinel:tasks", redisId);
@@ -81,7 +76,7 @@ async function processTasks() {
         try {
           let taskResult;
 
-          // 5. THE DISPATCHER (Modular Selection)
+          // 5. THE DISPATCHER
           switch (jobType) {
             case "api_ninja":
               taskResult = await apiWorker.execute(job);
@@ -105,30 +100,28 @@ async function processTasks() {
               throw new Error(`Unsupported jobType: ${jobType}`);
           }
 
-          // 6. SUCCESS PATH
-          job.status = "completed";
-          job.resultData = taskResult; 
-          job.completedAt = new Date();
-          await job.save();
-          // 📈 TELEMETRY: Log successful execution
+          // 6. SUCCESS PATH & DATA SAVING
+          job.lastResult = taskResult; 
+          job.lastRunAt = new Date();
+          
           await redis.incr(`telemetry:${job.user}:success`);
-          // 🔄 THE AUTO-HANDOFF (Scraper/API -> Guard)
-          // If the job fetched a price AND the user provided guard rules, send it to the Guard!
 
-          if (["api_ninja", "price_scraper"].includes(jobType) && job.payload.guard) {
+          // 🔄 THE AUTO-HANDOFF (Scraper/API -> Guard)
+          // 🌟 We now check if targetValue actually exists to support "Observer Mode"
+          const hasGuard = job.payload.guard && job.payload.guard.targetValue !== undefined && job.payload.guard.targetValue !== '';
+
+          if (["api_ninja", "price_scraper"].includes(jobType) && hasGuard) {
             console.log(`[Worker] 🔄 Auto-Handoff: Sending ${job.payload.guard.metricName} to Guard...`);
-            
             await Job.create({
               user: job.user,
               jobType: "condition_guard",
               status: "pending",
               payload: {
-                currentValue: taskResult.value, // The live price we just fetched!
+                currentValue: taskResult.value, 
                 targetValue: job.payload.guard.targetValue,
                 condition: job.payload.guard.condition,
-                emailTo: job.payload.guard.emailTo,
+                emailTo: job.payload.guard.emailTo, // 🌟 Can be empty now safely
                 metricName: job.payload.guard.metricName,
-                // 🌟 Add this: Default to 60 mins if user didn't specify
                 cooldownMinutes: job.payload.guard.cooldownMinutes || 60
               },
               retryCount: 0,
@@ -136,23 +129,33 @@ async function processTasks() {
             });
           }
 
-          // 🔗 THE CHAIN REACTION (Guard -> Email)
-          // If the Guard ran and returned 'trigger_email', instantly spawn the Email job!
+          // 🧠 AI AUTO-HANDOFF (Sentiment Analyst -> Email)
+          // 🌟 Safely checks if email was provided
+          if (jobType === "content_summary" && job.payload.emailTo && job.payload.emailTo.trim() !== '') {
+            console.log(`[Worker] 🔄 Auto-Handoff: Sending AI Sentiment Analysis to Email...`);
+            await Job.create({
+              user: job.user,
+              jobType: "send_email",
+              status: "pending",
+              payload: {
+                to: job.payload.emailTo,
+                subject: `🧠 Sentinel AI Market Sentiment: ${taskResult.sentiment}`,
+                body: `Sentinel AI Analysis Complete:\n\nSentiment: ${taskResult.sentiment}\nConfidence: ${taskResult.score}/100\nReason: ${taskResult.reason}`
+              },
+              retryCount: 0,
+              maxRetries: 3
+            });
+          }
+
           // 🔗 THE CHAIN REACTION (Guard -> Email)
           if (jobType === "condition_guard" && taskResult.action === "trigger_email") {
-              
-            // 🛡️ THE COOLDOWN ENGINE
-            // Create a unique Redis key for this specific user and metric (e.g., "cooldown:user123:Bitcoin")
             const cooldownKey = `cooldown:${job.user}:${job.payload.metricName}`;
-            
-            // Ask Redis: Is this alert currently locked?
             const onCooldown = await redis.get(cooldownKey);
 
             if (onCooldown) {
               console.log(`[Worker] 🧊 Alert suppressed for ${job.payload.metricName}. Cooldown is active.`);
             } else {
               console.log(`[Worker] 🚨 Alert Triggered! Spawning email notification job...`);
-              
               await Job.create({
                 user: job.user,
                 jobType: "send_email",
@@ -162,58 +165,45 @@ async function processTasks() {
                 maxRetries: 3
               });
 
-              // 🔒 Lock the alert in Redis for X minutes
-              // setex = "Set with Expiration" (Key, TimeInSeconds, Value)
               const cooldownSeconds = job.payload.cooldownMinutes * 60;
               await redis.setex(cooldownKey, cooldownSeconds, "locked");
             }
           }
           
-          // ⏰ THE CRON ENGINE (Recurring Tasks)
-          // If this job has a cron string, clone it for the next scheduled time!
-// ⏰ THE CRON ENGINE (Recurring Tasks)
+          // ⏰ THE CRON ENGINE
           if (job.cronExpression) {
             try {
-              // 🌐 RECURRING TASK TIMEZONE CONVERSION
-              // Tell the Time Machine to respect the user's local timezone!
               const interval = CronExpressionParser.parse(job.cronExpression, { 
                 tz: job.timezone || "UTC" 
               });
 
-              const nextRunDate = interval.next().toDate(); // Outputs pure UTC
+              job.scheduledAt = interval.next().toDate(); 
+              job.status = "pending"; 
+              await job.save();
 
-              console.log(`[Worker] ⏰ Recurring task detected! Next execution scheduled for: ${nextRunDate}`);
-
-              await Job.create({
-                user: job.user,
-                jobType: jobType,
-                payload: job.payload, 
-                cronExpression: job.cronExpression,
-                timezone: job.timezone, // 🌟 INHERIT THE TIMEZONE TO THE CLONE
-                scheduledAt: nextRunDate, 
-                status: "pending",
-                retryCount: 0,
-                maxRetries: 3
-              });
+              console.log(`[Worker] ⏰ CRON updated! Next execution scheduled for: ${job.scheduledAt}`);
             } catch (cronErr) {
               console.error(`[Worker] ❌ Failed to parse CRON expression: ${cronErr.message}`);
+              job.status = "failed";
+              await job.save();
             }
+          } else {
+            job.status = "completed";
+            job.completedAt = new Date();
+            await job.save();
           }
 
-          // Acknowledge and Remove from Stream
           await redis.xack("sentinel:tasks", GROUP_NAME, redisId);
           await redis.xdel("sentinel:tasks", redisId);
           console.log(`[Worker] ✅ Task ${jobId} finished successfully.`);
 
         } catch (error) {
-          // 7. UNIFIED FAILURE/RETRY ARMOR
           console.error(`[Worker] ❌ Task ${jobId} failed: ${error.message}`);
 
           if (job.retryCount < job.maxRetries) {
             job.retryCount += 1;
             job.status = "pending";
             
-            // Exponential Backoff: Wait 30s, 1m, 2m...
             const delayMs = Math.pow(2, job.retryCount) * 30 * 1000;
             job.scheduledAt = new Date(Date.now() + delayMs);
             await job.save();
@@ -222,24 +212,22 @@ async function processTasks() {
           } else {
             job.status = "failed";
             job.errorLog = error.message;
-            job.completedAt = new Date(); // 🌟 ADD THIS LINE to fix the zombie bug!
+            job.completedAt = new Date(); 
             await job.save();
-            // 📉 TELEMETRY: Log failed execution
+            
             await redis.incr(`telemetry:${job.user}:failed`);
             console.log(`[Worker] 💀 Job ${jobId} permanently failed.`);
           }
 
-          // Always ACK so it leaves the PEL (Pending Entries List)
           await redis.xack("sentinel:tasks", GROUP_NAME, redisId);
           await redis.xdel("sentinel:tasks", redisId);
         }
       }
     } catch (err) {
       console.error("[Worker] Global Loop Error:", err);
-      await new Promise(res => setTimeout(res, 2000)); // Cool-down on major error
+      await new Promise(res => setTimeout(res, 2000));
     }
   }
 }
 
-// Start the worker
 processTasks();

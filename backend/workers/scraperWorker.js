@@ -1,52 +1,79 @@
-const axios = require('axios');
-const cheerio = require('cheerio');
+const puppeteer = require('puppeteer');
 const UserAgent = require('user-agents');
 
 module.exports = {
   execute: async (job) => {
     const { url, selector, label = "Data" } = job.payload;
     
-    // Generates a new, real-world browser signature for every run
-    const userAgent = new UserAgent({ deviceCategory: 'desktop' }).toString();
-
-    console.log(`[Scrape-Worker] Investigating: ${url}`);
+    console.log(`[Scrape-Worker] 🕵️ Investigating (Stealth/Speed Mode): ${url}`);
+    
+    // 1. Launch browser with optimized performance flags
+    const browser = await puppeteer.launch({
+      headless: "new",
+      args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox', 
+        '--disable-dev-shm-usage',
+        '--disable-gpu', // Speeds up headless rendering
+        '--blink-settings=imagesEnabled=false' // Native image blocking
+      ] 
+    });
 
     try {
-      const response = await axios.get(url, {
-        headers: {
-          'User-Agent': userAgent,
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5',
-          'Referer': 'https://www.google.com/',
-          'DNT': '1' // "Do Not Track" signal
-        },
-        timeout: 15000
+      const page = await browser.newPage();
+      
+      // 2. Generate stealth signature
+      const userAgent = new UserAgent({ deviceCategory: 'desktop' }).toString();
+      await page.setUserAgent(userAgent);
+
+      // 3. 🚀 THE SPEED HACK: Block heavy resources so the page loads instantly
+      await page.setRequestInterception(true);
+      page.on('request', (request) => {
+        const resourceType = request.resourceType();
+        // Block images, stylesheets, fonts, and media. Allow scripts (JS), document (HTML), and fetch/xhr (API calls).
+        if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
+          request.abort();
+        } else {
+          request.continue();
+        }
       });
 
-      const $ = cheerio.load(response.data);
-      const extractedText = $(selector).text().trim();
+      // 4. Navigate (Stop waiting for the network to go idle, just wait for the basic HTML shell)
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+      // 5. The absolute source of truth: Wait exclusively for our specific element to appear
+      console.log(`[Scrape-Worker] Waiting for selector: ${selector}...`);
+      await page.waitForSelector(selector, { timeout: 15000 });
+
+      // 6. Extract the text
+      const extractedText = await page.$eval(selector, el => el.textContent.trim());
 
       if (!extractedText) {
-        throw new Error(`Selector "${selector}" returned no data. Site might have dynamic JS content.`);
+        throw new Error(`Selector "${selector}" was found, but it contained no text.`);
       }
 
-      // Pro Tip: Remove currency symbols and commas so the Guard can read it as a number
-      const cleanValue = extractedText.replace(/[^\d.-]/g, '');
+      // 7. Sanitize and strictly type
+      const cleanString = extractedText.replace(/[^\d.-]/g, '');
+      const numericValue = parseFloat(cleanString);
 
-      console.log(`[Scrape-Worker] 🎯 Captured ${label}: ${extractedText}`);
+      if (isNaN(numericValue)) {
+         throw new Error(`Extracted text "${extractedText}" could not be converted to a valid number.`);
+      }
+
+      console.log(`[Scrape-Worker] 🎯 Captured ${label}: $${numericValue}`);
 
       return {
-        value: cleanValue, // Numeric value for the Guard
+        value: numericValue, 
         originalText: extractedText,
-        source: "web_scraper",
+        source: "puppeteer_optimized",
         timestamp: new Date()
       };
 
     } catch (err) {
-      if (err.response?.status === 403) {
-        throw new Error("403 Forbidden: Sentinel was blocked by a bot-bouncer.");
-      }
+      console.error(`[Scrape-Worker] ❌ Failed: ${err.message}`);
       throw err;
+    } finally {
+      await browser.close();
     }
   }
 };
