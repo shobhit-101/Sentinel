@@ -1,18 +1,23 @@
 const mongoose = require('mongoose');
 
+// Single source of truth for valid jobTypes.
+// worker.js imports this same list to build its dispatch map and to assert
+// at startup that the schema enum and the dispatch are in sync.
+const JOB_TYPES = [
+  'send_email',
+  'price_scraper',
+  'api_ninja',
+  'keyword_alert',
+  'condition_guard',
+  'content_summary'
+];
+
 const jobSchema = new mongoose.Schema({
   // 1. WHAT to do (The Worker Router)
-  jobType: { 
+  jobType: {
     type: String,
     required: true,
-    enum: [
-      'send_email', 
-      'price_scraper',
-      'api_ninja',
-      'keyword_alert', 
-      'condition_guard', 
-      'content_summary'
-    ], 
+    enum: JOB_TYPES,
     trim: true
   },
   
@@ -82,4 +87,6 @@ const jobSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-module.exports = mongoose.model("Job", jobSchema);
+const Job = mongoose.model("Job", jobSchema);
+Job.JOB_TYPES = JOB_TYPES;
+module.exports = Job;

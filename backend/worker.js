@@ -11,6 +11,32 @@ const summaryWorker = require('./workers/summaryWorker');
 const emailWorker = require('./workers/emailWorker');
 const guardWorker = require('./workers/guardWorker');
 
+// jobType -> worker module. Keys must match models/Job.js JOB_TYPES exactly;
+// drift is rejected at startup below.
+const DISPATCH = {
+  api_ninja: apiWorker,
+  price_scraper: scrapeWorker,
+  keyword_alert: scrapeWorker,
+  condition_guard: guardWorker,
+  content_summary: summaryWorker,
+  send_email: emailWorker,
+};
+
+(function assertDispatchMatchesSchema() {
+  const schemaTypes = new Set(Job.JOB_TYPES);
+  const dispatchTypes = new Set(Object.keys(DISPATCH));
+  const missingDispatch = [...schemaTypes].filter(t => !dispatchTypes.has(t));
+  const missingSchema = [...dispatchTypes].filter(t => !schemaTypes.has(t));
+  if (missingDispatch.length || missingSchema.length) {
+    const msg = [
+      'SSOT violation between Job schema enum and worker dispatch:',
+      missingDispatch.length ? `  in schema, not dispatched: ${missingDispatch.join(', ')}` : null,
+      missingSchema.length ? `  dispatched, not in schema:    ${missingSchema.join(', ')}` : null
+    ].filter(Boolean).join('\n');
+    throw new Error(msg);
+  }
+})();
+
 // 2. Configuration & Constants
 const redis = new Redis({
   host: process.env.REDIS_HOST || "127.0.0.1",
@@ -135,29 +161,12 @@ async function processTasks() {
         await job.save();
 
         try {
-          let taskResult;
-
           // 5. THE DISPATCHER
-          switch (jobType) {
-            case "api_ninja":
-              taskResult = await apiWorker.execute(job);
-              break;
-            case "price_scraper":
-            case "keyword_alert":
-              taskResult = await scrapeWorker.execute(job);
-              break;
-            case "condition_guard":
-              taskResult = await guardWorker.execute(job);
-              break;
-            case "content_summary":
-              taskResult = await summaryWorker.execute(job);
-              break;
-            case "send_email":
-              taskResult = await emailWorker.execute(job);
-              break;
-            default:
-              throw new Error(`Unsupported jobType: ${jobType}`);
+          const handler = DISPATCH[jobType];
+          if (!handler) {
+            throw new Error(`Unsupported jobType: ${jobType}`);
           }
+          const taskResult = await handler.execute(job);
 
           // 6. SUCCESS PATH & DATA SAVING
           job.lastResult = taskResult; 
