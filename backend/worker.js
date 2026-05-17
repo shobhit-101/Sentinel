@@ -105,7 +105,6 @@ async function processTasks() {
             case "keyword_alert":
               taskResult = await scrapeWorker.execute(job);
               break;
-            case "availability_guard":
             case "condition_guard":
               taskResult = await guardWorker.execute(job);
               break;
@@ -113,7 +112,6 @@ async function processTasks() {
               taskResult = await summaryWorker.execute(job);
               break;
             case "send_email":
-            case "email_notification":
               taskResult = await emailWorker.execute(job);
               break;
             default:
