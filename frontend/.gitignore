@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# Environment & secrets (Vite reads .env, .env.local, etc.)
+.env
+.env.development
+.env.production
+
+# Local Claude Code settings
+.claude/settings.local.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
