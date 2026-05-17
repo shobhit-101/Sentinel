@@ -78,8 +78,13 @@ module.exports = {
       };
 
     } catch (err) {
+      const body = err.response?.data;
+      const apiMsg = body?.error || body?.message;
+      if (apiMsg && !err.message.includes(apiMsg)) {
+        err.message = `${err.message}: ${apiMsg}`;
+      }
       console.error(`[API-Worker] ❌ Failed: ${err.message}`);
-      throw err; 
+      throw err;
     }
   }
 };
