@@ -20,6 +20,26 @@ const redis = new Redis({
 const GROUP_NAME = "sentinel_workers";
 const CONSUMER_NAME = "worker_1";
 
+// Distinguish transient (retry) vs permanent (fail fast) errors.
+// Conservative: retry only when we recognize a transient signal.
+function isRetryable(err) {
+  if (!err) return false;
+
+  const transientCodes = new Set([
+    'ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT',
+    'ENOTFOUND', 'EAI_AGAIN', 'ECONNABORTED',
+    'EPIPE', 'EHOSTUNREACH', 'ENETUNREACH'
+  ]);
+  if (err.code && transientCodes.has(err.code)) return true;
+
+  const status = err.response?.status ?? err.statusCode;
+  if (typeof status === 'number') {
+    return status === 408 || status === 429 || (status >= 500 && status < 600);
+  }
+
+  return false;
+}
+
 // 3. Infrastructure Setup
 async function setupInfrastructure() {
   try {
@@ -229,23 +249,26 @@ async function processTasks() {
         } catch (error) {
           console.error(`[Worker] ❌ Task ${jobId} failed: ${error.message}`);
 
-          if (job.retryCount < job.maxRetries) {
+          const retryable = isRetryable(error);
+
+          if (retryable && job.retryCount < job.maxRetries) {
             job.retryCount += 1;
             job.status = "pending";
-            
+
             const delayMs = Math.pow(2, job.retryCount) * 30 * 1000;
             job.scheduledAt = new Date(Date.now() + delayMs);
             await job.save();
-            
-            console.log(`[Worker] ⏳ Retry ${job.retryCount} scheduled in ${delayMs / 1000}s`);
+
+            console.log(`[Worker] ⏳ Retry ${job.retryCount} scheduled in ${delayMs / 1000}s (transient)`);
           } else {
             job.status = "failed";
             job.errorLog = error.message;
-            job.completedAt = new Date(); 
+            job.completedAt = new Date();
             await job.save();
-            
+
             await redis.incr(`telemetry:${job.user}:failed`);
-            console.log(`[Worker] 💀 Job ${jobId} permanently failed.`);
+            const reason = retryable ? "max retries exhausted" : "non-retryable error";
+            console.log(`[Worker] 💀 Job ${jobId} permanently failed (${reason}).`);
           }
 
           await redis.xack("sentinel:tasks", GROUP_NAME, redisId);
