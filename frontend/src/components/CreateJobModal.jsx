@@ -16,7 +16,7 @@ export default function CreateJobModal({ isOpen, onClose, onSuccess }) {
   // Payload States
   const [payload, setPayload] = useState({
     type: 'crypto',
-    symbol: 'BTCUSD',
+    symbol: 'BTCUSDT',
     to: '',
     subject: '',
     body: '',
@@ -36,7 +36,7 @@ export default function CreateJobModal({ isOpen, onClose, onSuccess }) {
 
   const handleAssetCategoryChange = (newType) => {
     let defaultSymbol = '';
-    if (newType === 'crypto') defaultSymbol = 'BTCUSD';
+    if (newType === 'crypto') defaultSymbol = 'BTCUSDT';
     if (newType === 'stock') defaultSymbol = 'AAPL';
     if (newType === 'binance_gold') defaultSymbol = 'PAXGUSDT';
     if (newType === 'codeforces') defaultSymbol = 'upcoming';
@@ -168,9 +168,9 @@ export default function CreateJobModal({ isOpen, onClose, onSuccess }) {
                       <select value={payload.symbol} onChange={(e) => setPayload({...payload, symbol: e.target.value})} className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm">
                         {payload.type === 'crypto' && (
                           <>
-                            <option value="BTCUSD">Bitcoin (BTCUSD)</option>
-                            <option value="ETHUSD">Ethereum (ETHUSD)</option>
-                            <option value="SOLUSD">Solana (SOLUSD)</option>
+                            <option value="BTCUSDT">Bitcoin (BTCUSDT)</option>
+                            <option value="ETHUSDT">Ethereum (ETHUSDT)</option>
+                            <option value="SOLUSDT">Solana (SOLUSDT)</option>
                           </>
                         )}
                         {payload.type === 'stock' && (
