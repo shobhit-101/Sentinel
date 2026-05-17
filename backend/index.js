@@ -12,8 +12,17 @@ const User = require("./models/User");
 const auth = require("./middleware/auth");
 
 const app = express();
-app.use(cors()); 
-app.use(express.json()); 
+app.use(cors());
+app.use(express.json());
+
+// Reject malformed :id route params with 400 instead of letting a Mongoose
+// CastError fall through to the generic 500 handler.
+app.param("id", (req, res, next, id) => {
+  if (!mongoose.isValidObjectId(id)) {
+    return res.status(400).json({ success: false, error: "Invalid id format" });
+  }
+  next();
+});
 
 const redis = new Redis({
   host: process.env.REDIS_HOST || "127.0.0.1",
