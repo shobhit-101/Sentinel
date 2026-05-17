@@ -106,41 +106,70 @@ async function processTasks() {
           
           await redis.incr(`telemetry:${job.user}:success`);
 
-          // 🔄 THE AUTO-HANDOFF (Scraper/API -> Guard)
-          // 🌟 We now check if targetValue actually exists to support "Observer Mode"
+          // 🔄 THE AUTO-HANDOFF (The Fork in the Road)
           const hasGuard = job.payload.guard && job.payload.guard.targetValue !== undefined && job.payload.guard.targetValue !== '';
+          const hasAI = job.payload.aiInstructions && job.payload.aiInstructions.trim() !== '';
 
-          if (["api_ninja", "price_scraper"].includes(jobType) && hasGuard) {
-            console.log(`[Worker] 🔄 Auto-Handoff: Sending ${job.payload.guard.metricName} to Guard...`);
-            await Job.create({
-              user: job.user,
-              jobType: "condition_guard",
-              status: "pending",
-              payload: {
-                currentValue: taskResult.value, 
-                targetValue: job.payload.guard.targetValue,
-                condition: job.payload.guard.condition,
-                emailTo: job.payload.guard.emailTo, // 🌟 Can be empty now safely
-                metricName: job.payload.guard.metricName,
-                cooldownMinutes: job.payload.guard.cooldownMinutes || 60
-              },
-              retryCount: 0,
-              maxRetries: 3
-            });
+          if (["api_ninja", "price_scraper"].includes(jobType)) {
+            // BRANCH A: Scraper to AI
+            if (hasAI) {
+              console.log(`[Worker] 🔄 Auto-Handoff: Sending Scraped Text to AI Worker...`);
+              await Job.create({
+                user: job.user,
+                jobType: "content_summary",
+                status: "pending",
+                payload: {
+                  sourceText: taskResult.originalText || String(taskResult.value), // Pass raw scraped text
+                  aiInstructions: job.payload.aiInstructions,
+                 emailTo: job.payload.emailTo || (job.payload.guard ? job.payload.guard.emailTo : ''),
+                },
+                retryCount: 0,
+                maxRetries: 3
+              });
+            } 
+            // BRANCH B: Scraper to Guard
+            else if (hasGuard) {
+              console.log(`[Worker] 🔄 Auto-Handoff: Sending ${job.payload.guard.metricName} to Guard...`);
+              await Job.create({
+                user: job.user,
+                jobType: "condition_guard",
+                status: "pending",
+                payload: {
+                  currentValue: taskResult.value, 
+                  targetValue: job.payload.guard.targetValue,
+                  condition: job.payload.guard.condition,
+                  emailTo: job.payload.guard.emailTo,
+                  metricName: job.payload.guard.metricName,
+                  cooldownMinutes: job.payload.guard.cooldownMinutes || 60
+                },
+                retryCount: 0,
+                maxRetries: 3
+              });
+            }
           }
 
-          // 🧠 AI AUTO-HANDOFF (Sentiment Analyst -> Email)
-          // 🌟 Safely checks if email was provided
+          // 🧠 AI AUTO-HANDOFF (AI -> Email)
           if (jobType === "content_summary" && job.payload.emailTo && job.payload.emailTo.trim() !== '') {
-            console.log(`[Worker] 🔄 Auto-Handoff: Sending AI Sentiment Analysis to Email...`);
+            console.log(`[Worker] 🔄 Auto-Handoff: Sending AI Analysis to Email...`);
+            
+            // Dynamically construct the email body based on whatever keys the AI returned
+            let dynamicBody = "Sentinel AI Analysis Complete:\n\n";
+            for (const [key, value] of Object.entries(taskResult)) {
+              if (!["modelUsed", "timestamp", "provider"].includes(key)) {
+                // Formatting camelCase keys (like `matchScore`) to readable text (`MATCH SCORE: 95`)
+                const formattedKey = key.replace(/([A-Z])/g, ' $1').toUpperCase();
+                dynamicBody += `${formattedKey}: ${value}\n`;
+              }
+            }
+
             await Job.create({
               user: job.user,
               jobType: "send_email",
               status: "pending",
               payload: {
                 to: job.payload.emailTo,
-                subject: `🧠 Sentinel AI Market Sentiment: ${taskResult.sentiment}`,
-                body: `Sentinel AI Analysis Complete:\n\nSentiment: ${taskResult.sentiment}\nConfidence: ${taskResult.score}/100\nReason: ${taskResult.reason}`
+                subject: `🧠 Sentinel AI Automation Report`,
+                body: dynamicBody
               },
               retryCount: 0,
               maxRetries: 3
