@@ -40,6 +40,42 @@ function isRetryable(err) {
   return false;
 }
 
+// 🧹 PEL SWEEPER
+// If a previous worker died between xreadgroup and xack, the message is stuck
+// in the consumer-group's Pending Entries List forever. XREADGROUP with ">"
+// will never re-deliver it. This sweeper reclaims any message idle longer
+// than PEL_IDLE_THRESHOLD_MS, then xack+xdel without re-executing. The Mongo
+// reaper in index.js handles re-execution by resetting the job to "pending",
+// so the normal pending -> poller -> stream flow re-pushes it cleanly.
+const PEL_IDLE_THRESHOLD_MS = Number(process.env.PEL_IDLE_THRESHOLD_MS) || 5 * 60 * 1000;
+const SWEEPER_INTERVAL_MS = Number(process.env.SWEEPER_INTERVAL_MS) || 60 * 1000;
+
+async function sweepPEL() {
+  try {
+    const result = await redis.xautoclaim(
+      "sentinel:tasks",
+      GROUP_NAME,
+      CONSUMER_NAME,
+      PEL_IDLE_THRESHOLD_MS,
+      "0-0",
+      "COUNT", 100
+    );
+    if (!Array.isArray(result)) return;
+    const messages = Array.isArray(result[1]) ? result[1] : [];
+
+    for (const entry of messages) {
+      if (!entry) continue;
+      const [redisId, data] = entry;
+      const jobId = Array.isArray(data) ? data[1] : "unknown";
+      await redis.xack("sentinel:tasks", GROUP_NAME, redisId);
+      await redis.xdel("sentinel:tasks", redisId);
+      console.log(`[Worker] 🧹 Swept orphan PEL message ${redisId} (job ${jobId}).`);
+    }
+  } catch (err) {
+    console.error("[Worker] PEL sweep error:", err.message);
+  }
+}
+
 // 3. Infrastructure Setup
 async function setupInfrastructure() {
   try {
@@ -63,6 +99,11 @@ async function setupInfrastructure() {
 async function processTasks() {
   await setupInfrastructure();
   console.log(`[Worker] ${CONSUMER_NAME} standing by in group "${GROUP_NAME}"...`);
+
+  // Run a sweep immediately to clean any orphans left by a previous crash,
+  // then on a fixed interval to catch ones from future crashes.
+  sweepPEL();
+  setInterval(sweepPEL, SWEEPER_INTERVAL_MS);
 
   while (true) {
     try {

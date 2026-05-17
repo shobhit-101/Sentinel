@@ -245,6 +245,47 @@ setInterval(async () => {
 }, POLLING_INTERVAL);
 
 // ==========================================
+// 🩹 STALE-PROCESSING REAPER
+// ==========================================
+// If a worker crashes mid-job, the Mongo record stays on status="processing"
+// forever and the Redis PEL holds an orphan. The reaper periodically scans for
+// "processing" jobs that haven't been touched in REAPER_THRESHOLD_MS and resets
+// them so the normal pending -> poller -> stream flow re-attempts them.
+const REAPER_THRESHOLD_MS = Number(process.env.REAPER_THRESHOLD_MS) || 5 * 60 * 1000;
+const REAPER_INTERVAL_MS = Number(process.env.REAPER_INTERVAL_MS) || 30 * 1000;
+
+setInterval(async () => {
+  try {
+    const cutoff = new Date(Date.now() - REAPER_THRESHOLD_MS);
+    const stuck = await Job.find({
+      status: "processing",
+      updatedAt: { $lt: cutoff }
+    });
+
+    for (const job of stuck) {
+      if (job.retryCount < job.maxRetries) {
+        job.retryCount += 1;
+        job.status = "pending";
+        const delayMs = Math.pow(2, job.retryCount) * 30 * 1000;
+        job.scheduledAt = new Date(Date.now() + delayMs);
+        job.errorLog = "Worker crash detected; job abandoned in processing state.";
+        await job.save();
+        console.log(`[Reaper] 🩹 Reset stale job ${job._id} (retry ${job.retryCount} in ${delayMs / 1000}s).`);
+      } else {
+        job.status = "failed";
+        job.errorLog = "Abandoned in processing state; max retries exhausted.";
+        job.completedAt = new Date();
+        await job.save();
+        await redis.incr(`telemetry:${job.user}:failed`);
+        console.log(`[Reaper] 💀 Stale job ${job._id} permanently failed (max retries).`);
+      }
+    }
+  } catch (err) {
+    console.error("[Reaper] Error:", err);
+  }
+}, REAPER_INTERVAL_MS);
+
+// ==========================================
 // 🗑️ THE GARBAGE COLLECTOR
 // ==========================================
 setInterval(async () => {
