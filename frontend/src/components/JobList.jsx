@@ -26,7 +26,7 @@ export default function JobList() {
       const { data } = await api.get('/jobs');
       setJobs(data.data);
     } catch (err) {
-      toast.error('Failed to load active monitors');
+      toast.error(err.response?.data?.error || 'Failed to load active monitors');
     } finally {
       setIsLoading(false);
     }
@@ -34,13 +34,13 @@ export default function JobList() {
 
   const toggleStatus = async (id, currentStatus) => {
     if (currentStatus !== 'pending' && currentStatus !== 'paused') return;
-    
+
     try {
       await api.put(`/jobs/${id}`);
-      fetchJobs(); 
+      fetchJobs();
       toast.success(currentStatus === 'pending' ? 'Monitor paused' : 'Monitor resumed');
     } catch (err) {
-      toast.error('Failed to update status');
+      toast.error(err.response?.data?.error || 'Failed to update status');
     }
   };
 
@@ -51,19 +51,19 @@ export default function JobList() {
       fetchJobs();
       toast.success('Task status updated');
     } catch (err) {
-      toast.error('Failed to update task');
+      toast.error(err.response?.data?.error || 'Failed to update task');
     }
   };
 
   const deleteJob = async (id) => {
     if (!window.confirm('Are you sure you want to delete this monitor?')) return;
-    
+
     try {
       await api.delete(`/jobs/${id}`);
       fetchJobs();
       toast.success('Monitor deleted');
     } catch (err) {
-      toast.error('Failed to delete monitor');
+      toast.error(err.response?.data?.error || 'Failed to delete monitor');
     }
   };
 
@@ -79,6 +79,13 @@ export default function JobList() {
   };
 
   const renderLastResult = (job) => {
+    if (job.status === 'failed' && job.errorLog) {
+      return (
+        <div className="text-sm bg-red-500/5 p-3 rounded-lg border border-red-500/20 text-red-300">
+          <span className="font-semibold text-red-400">Error:</span> {job.errorLog}
+        </div>
+      );
+    }
     if (!job.lastResult) return <span className="text-xs text-textMuted italic">Pending execution...</span>;
 
     if (job.jobType === 'content_summary') {
@@ -216,11 +223,13 @@ export default function JobList() {
                 </td>
               </tr>
               
-              {job.lastResult && (
+              {(job.lastResult || (job.status === 'failed' && job.errorLog)) && (
                 <tr className="bg-surface/50 border-b border-border">
                   <td colSpan="5" className="px-14 py-3">
                     <div className="flex gap-4 items-start">
-                      <span className="text-xs font-semibold text-textMuted uppercase tracking-wider mt-1">Output:</span>
+                      <span className="text-xs font-semibold text-textMuted uppercase tracking-wider mt-1">
+                        {job.status === 'failed' ? 'Error:' : 'Output:'}
+                      </span>
                       <div className="flex-1">
                         {renderLastResult(job)}
                       </div>
