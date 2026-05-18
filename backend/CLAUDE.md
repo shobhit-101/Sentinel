@@ -41,9 +41,6 @@ Redis is ephemeral transport + cooldown/telemetry tracking.
    `processing` indefinitely. Related to (2).
 4. **Puppeteer memory leak.** `scraperWorker.js` opens a new page per task with
    no browser pool. Fails under concurrency.
-5. **Email is sandbox-locked.** Resend hardcoded to `onboarding@resend.dev`,
-   delivers only to the dev's registered address. Lifting it needs a custom
-   domain bound to Resend.
 
 ## Stack
 Node.js (assume 18+), MongoDB via `mongoose`, Redis via `ioredis`, React

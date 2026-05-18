@@ -16,7 +16,7 @@ module.exports = {
 
     try {
       const { data, error } = await resend.emails.send({
-        from: 'Sentinel Alerts <onboarding@resend.dev>', // Resend testing default
+        from: 'Sentinel Alerts <alerts@sentinel.engineer>',
         to: [to], // Resend expects an array
         subject: subject,
         text: body,

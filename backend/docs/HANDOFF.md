@@ -75,18 +75,15 @@ Asynchronous, event-driven pipeline separated into distinct services:
 ## 6. Current state
 
 - **Working:** Puppeteer headless scraping (anti-bot config), Groq JSON-mode
-  inference, dynamic `worker.js` routing + auto-handoff, Resend sandbox
-  dispatch, React UI dynamic JSON rendering.
+  inference, dynamic `worker.js` routing + auto-handoff, Resend dispatch
+  via verified `sentinel.engineer` domain (any user-supplied `emailTo` works),
+  React UI dynamic JSON rendering.
 - **Partial:** Cron scheduling — `worker.js` parses cron and updates
   `job.scheduledAt`, but nothing pushes it back to Redis.
-- **Stubbed:** Resend locked to sandbox; hardcoded sender `onboarding@resend.dev`,
-  delivers only to dev's registered address.
 - **Broken:** Cron loop execution; PEL memory leak.
 
 ## 7. Known issues, bugs, TODOs
 
-- **TODO — Resend jailbreak (Phase 5):** Bind custom domain to lift sandbox,
-  allow arbitrary user `emailTo`.
 - **TODO — Frontend overhaul (Phase 6):** Split layout — "Static Tasks"
   (sidebar) vs "Active Monitors" (grid).
 - **BUG — Cron spawner missing:** Need `cronPoller.js` daemon querying Mongo for
