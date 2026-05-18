@@ -11,6 +11,16 @@ export default function JobList() {
     fetchJobs();
   }, []);
 
+  // Auto-poll while any job is still in flight. Stops on its own once
+  // everything is completed / failed / paused so the dashboard doesn't
+  // hammer the API for no reason.
+  useEffect(() => {
+    const hasInFlight = jobs.some(j => ['pending', 'queued', 'processing'].includes(j.status));
+    if (!hasInFlight) return;
+    const interval = setInterval(fetchJobs, 5000);
+    return () => clearInterval(interval);
+  }, [jobs]);
+
   const fetchJobs = async () => {
     try {
       const { data } = await api.get('/jobs');
