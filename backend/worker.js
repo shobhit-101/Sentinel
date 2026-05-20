@@ -218,17 +218,10 @@ async function processTasks() {
 
           // 🧠 AI AUTO-HANDOFF (AI -> Email)
           if (jobType === "content_summary" && job.payload.emailTo && job.payload.emailTo.trim() !== '') {
-            console.log(`[Worker] 🔄 Auto-Handoff: Sending AI Analysis to Email...`);
-            
-            // Dynamically construct the email body based on whatever keys the AI returned
-            let dynamicBody = "Sentinel AI Analysis Complete:\n\n";
-            for (const [key, value] of Object.entries(taskResult)) {
-              if (!["modelUsed", "timestamp", "provider"].includes(key)) {
-                // Formatting camelCase keys (like `matchScore`) to readable text (`MATCH SCORE: 95`)
-                const formattedKey = key.replace(/([A-Z])/g, ' $1').toUpperCase();
-                dynamicBody += `${formattedKey}: ${value}\n`;
-              }
-            }
+            console.log(`[Worker] 🔄 Auto-Handoff: Sending AI response to Email...`);
+
+            // The AI pipeline is free-form: email exactly what the model returned.
+            const dynamicBody = taskResult.response || "(no response)";
 
             await Job.create({
               user: job.user,
@@ -236,7 +229,7 @@ async function processTasks() {
               status: "pending",
               payload: {
                 to: job.payload.emailTo,
-                subject: `🧠 Sentinel AI Automation Report`,
+                subject: `🧠 Sentinel AI Report`,
                 body: dynamicBody
               },
               retryCount: 0,

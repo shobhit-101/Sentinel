@@ -89,27 +89,10 @@ export default function JobList() {
     if (!job.lastResult) return <span className="text-xs text-textMuted italic">Pending execution...</span>;
 
     if (job.jobType === 'content_summary') {
-      const getSentimentColor = (sentiment) => {
-        if (sentiment === "BULLISH") return "text-green-400 bg-green-400/10 border-green-400/20";
-        if (sentiment === "BEARISH") return "text-red-400 bg-red-400/10 border-red-400/20";
-        return "text-amber-400 bg-amber-400/10 border-amber-400/20";
-      };
-
-      // 🌟 THE FIX: Dynamically check for score, rating, or default to N/A
-      const confidenceValue = job.lastResult.score || job.lastResult.rating || "N/A";
-
       return (
-        <div className="text-sm bg-background p-3 rounded-lg border border-border flex flex-col gap-2">
-          <div className="flex items-center gap-3">
-             <span className={`px-2.5 py-1 rounded text-xs font-bold tracking-wider border ${getSentimentColor(job.lastResult.sentiment)}`}>
-               {job.lastResult.sentiment}
-             </span>
-             {/* Use the new dynamic confidenceValue here */}
-             <span className="text-textMuted text-xs">Confidence: <span className="text-textMain font-medium">{confidenceValue}/100</span></span>
-          </div>
-          {/* Also rendering the snarkyComment if it exists! */}
-          <p className="text-textMain text-xs mt-1 border-t border-border/50 pt-2">
-            {job.lastResult.reason || job.lastResult.snarkyComment}
+        <div className="text-sm bg-background p-3 rounded-lg border border-border">
+          <p className="text-textMain text-xs whitespace-pre-wrap leading-relaxed">
+            {job.lastResult.response || '(no response)'}
           </p>
         </div>
       );

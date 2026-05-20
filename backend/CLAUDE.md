@@ -24,10 +24,10 @@ Redis is ephemeral transport + cooldown/telemetry tracking.
   feature. Not a missing validation.
 - `worker.js`: hoisting `payload.guard.emailTo` → `payload.emailTo` on downstream
   job creation is intentional remapping.
-- `worker.js`: silently dropping `modelUsed`, `timestamp`, `provider` from email
-  bodies is intentional.
-- `summaryWorker.js`: the `try/catch` around `JSON.parse` with
-  `{ summary: rawContent }` fallback handles LLM hallucination. Never remove it.
+- `summaryWorker.js`: the AI pipeline is free-form. No `response_format` /
+  JSON-mode constraint — the model answers the prompt in natural language and
+  the raw text is returned as `{ response }`, emailed verbatim. Do not
+  re-introduce forced JSON.
 
 ## Known broken / incomplete (priority order)
 1. **Cron execution is dead.** `worker.js` parses cron and writes
