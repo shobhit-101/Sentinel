@@ -99,14 +99,17 @@ export default function JobList() {
     }
     
     if (job.jobType === 'api_ninja' || job.jobType === 'price_scraper') {
+      const v = job.lastResult.value;
+      const isNum = typeof v === 'number';
       return (
-        <span className="text-sm font-bold text-primary">
-          {/* Changed this slightly to accommodate Codeforces strings without printing NaN */}
-          {typeof job.lastResult.value === 'number' ? `$${job.lastResult.value}` : job.lastResult.value} 
-          <span className="text-xs text-textMuted font-normal ml-2">
-            (Last checked: {new Date(job.lastRunAt).toLocaleTimeString()})
-          </span>
-        </span>
+        <div className="text-sm">
+          <div className={isNum ? 'font-bold text-primary' : 'text-textMain text-xs whitespace-pre-wrap leading-relaxed'}>
+            {isNum ? `$${v}` : v}
+          </div>
+          <div className="text-xs text-textMuted mt-1">
+            Last checked: {new Date(job.lastRunAt).toLocaleTimeString()}
+          </div>
+        </div>
       );
     }
 
@@ -154,7 +157,7 @@ export default function JobList() {
                   </div>
                 </td>
                 <td className="p-4 text-textMuted text-sm">
-                  {job.payload.symbol || job.payload.url || job.payload.to || job.payload.metricName || 'System Task'}
+                  {job.payload.symbol || job.payload.url || job.payload.to || job.payload.metricName || job.payload.label || 'System Task'}
                 </td>
                 <td className="p-4">
                   <div className="flex flex-col">

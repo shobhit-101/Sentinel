@@ -39,8 +39,7 @@ export default function CreateJobModal({ isOpen, onClose, onSuccess }) {
     if (newType === 'crypto') defaultSymbol = 'BTCUSDT';
     if (newType === 'stock') defaultSymbol = 'AAPL';
     if (newType === 'binance_gold') defaultSymbol = 'PAXGUSDT';
-    if (newType === 'codeforces') defaultSymbol = 'upcoming';
-    
+
     setPayload({ ...payload, type: newType, symbol: defaultSymbol });
   };
 
@@ -80,10 +79,17 @@ export default function CreateJobModal({ isOpen, onClose, onSuccess }) {
         }
       };
     } else if (jobType === 'content_summary') {
-      finalPayload = { 
-        textToSummarize: payload.textToSummarize, 
-        tone: payload.tone, 
+      finalPayload = {
+        textToSummarize: payload.textToSummarize,
+        tone: payload.tone,
         emailTo: payload.emailTo // Now safely passes empty strings
+      };
+    } else if (jobType === 'codeforces') {
+      finalJobType = 'api_ninja';
+      finalPayload = {
+        type: 'codeforces',
+        label: 'Codeforces Contests',
+        emailResultsTo: payload.emailTo // optional; blank = dashboard-only
       };
     } else if (jobType === 'reminder') {
       finalJobType = 'send_email';
@@ -134,6 +140,7 @@ export default function CreateJobModal({ isOpen, onClose, onSuccess }) {
               <optgroup label="System Monitors">
                 <option value="api_ninja">Financial Asset Tracker (Crypto/Stocks)</option>
                 <option value="price_scraper">Website Price Scraper</option>
+                <option value="codeforces">Codeforces Contests</option>
               </optgroup>
               <optgroup label="AI & Automation">
                 <option value="content_summary">AI Market Sentiment Analyst</option>
@@ -157,7 +164,6 @@ export default function CreateJobModal({ isOpen, onClose, onSuccess }) {
                       <option value="crypto">Cryptocurrency</option>
                       <option value="stock">US Stocks</option>
                       <option value="binance_gold">Gold</option>
-                      <option value="codeforces">Codeforces Contests</option>
                     </select>
                   </div>
                   <div>
@@ -184,7 +190,7 @@ export default function CreateJobModal({ isOpen, onClose, onSuccess }) {
                     )}
                   </div>
                 </div>
-                {payload.type !== 'codeforces' && (<div className="mt-4 pt-4 border-t border-border/50"> 
+                <div className="mt-4 pt-4 border-t border-border/50">
                   <p className="text-xs font-semibold text-primary mb-3">Alert Threshold (Auto-Guard)</p>
                   <div className="grid grid-cols-2 gap-4 mb-3">
                     <select value={payload.condition} onChange={(e) => setPayload({...payload, condition: e.target.value})} className="bg-surface border border-border rounded-lg px-3 py-2 text-sm">
@@ -193,9 +199,18 @@ export default function CreateJobModal({ isOpen, onClose, onSuccess }) {
                     </select>
                     <input type="number" placeholder="Target Price (e.g. 60000)" value={payload.targetValue} onChange={(e) => setPayload({...payload, targetValue: e.target.value})} className="bg-surface border border-border rounded-lg px-3 py-2 text-sm" required />
                   </div>
-                  {/* 🌟 REMOVED REQUIRED, CHANGED LABEL TO OPTIONAL */}
                   <input type="email" placeholder="Alert Email Address (Optional - Leave blank to just log data)" value={payload.emailTo} onChange={(e) => setPayload({...payload, emailTo: e.target.value})} className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm" />
-                </div>)}
+                </div>
+              </>
+            )}
+
+            {jobType === 'codeforces' && (
+              <>
+                <p className="text-xs text-textMuted mb-3">
+                  Fetches the list of upcoming Codeforces contests (name, start time, duration) each run.
+                </p>
+                <label className="block text-xs text-textMuted mb-1">Email the contest list to (Optional - leave blank to just show on dashboard)</label>
+                <input type="email" placeholder="your-email@gmail.com" value={payload.emailTo} onChange={(e) => setPayload({...payload, emailTo: e.target.value})} className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm" />
               </>
             )}
 
