@@ -8,32 +8,40 @@ module.exports = {
     console.log(`[API-Worker] Fetching ${type} data...`);
 
     try {
-      // 🌟 PHASE 2: CODEFORCES API (Observer Mode)
+      // 🌟 CODEFORCES API — list the upcoming contests
       if (type === 'codeforces') {
         const url = 'https://codeforces.com/api/contest.list';
         const response = await axios.get(url);
-        
+
         if (response.data.status !== 'OK') throw new Error("Codeforces API failed");
 
-        // Find the next upcoming contest
+        // All not-yet-started contests, soonest first, capped at 10.
         const upcoming = response.data.result
           .filter(c => c.phase === 'BEFORE')
-          .sort((a, b) => a.startTimeSeconds - b.startTimeSeconds)[0];
+          .sort((a, b) => a.startTimeSeconds - b.startTimeSeconds)
+          .slice(0, 10);
 
-        if (!upcoming) {
-          return { value: "No upcoming contests scheduled.", source: "codeforces", timestamp: new Date() };
+        if (upcoming.length === 0) {
+          return { value: "No upcoming Codeforces contests scheduled.", source: "codeforces_api", timestamp: new Date() };
         }
 
-        // Convert unix timestamp to readable string
-        const contestDate = new Date(upcoming.startTimeSeconds * 1000).toLocaleString();
-        const valueString = `${upcoming.name} (${contestDate})`;
+        const tz = job.timezone || 'UTC';
+        const lines = upcoming.map(c => {
+          const when = new Date(c.startTimeSeconds * 1000).toLocaleString('en-US', {
+            timeZone: tz, weekday: 'short', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+          });
+          const totalMin = Math.round(c.durationSeconds / 60);
+          const dur = totalMin >= 60
+            ? `${Math.floor(totalMin / 60)}h${totalMin % 60 ? ' ' + (totalMin % 60) + 'm' : ''}`
+            : `${totalMin}m`;
+          return `• ${c.name}\n  ${when} (${tz}) · ${dur}`;
+        });
 
-        console.log(`[API-Worker] ✅ Captured Codeforces: ${valueString}`);
-        return {
-          value: valueString, // Observer mode handles strings safely!
-          source: "codeforces_api",
-          timestamp: new Date()
-        };
+        const valueString = `${upcoming.length} upcoming contest(s):\n\n${lines.join('\n\n')}`;
+
+        console.log(`[API-Worker] ✅ Captured ${upcoming.length} upcoming Codeforces contests`);
+        return { value: valueString, source: "codeforces_api", timestamp: new Date() };
       }
 
       // 🌟 THE HACK: If the user asks for "binance_gold", use the public crypto API

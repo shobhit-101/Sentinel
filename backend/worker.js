@@ -177,6 +177,7 @@ async function processTasks() {
           // 🔄 THE AUTO-HANDOFF (The Fork in the Road)
           const hasGuard = job.payload.guard && job.payload.guard.targetValue !== undefined && job.payload.guard.targetValue !== '';
           const hasAI = job.payload.aiInstructions && job.payload.aiInstructions.trim() !== '';
+          const hasEmailResults = job.payload.emailResultsTo && job.payload.emailResultsTo.trim() !== '';
 
           if (["api_ninja", "price_scraper"].includes(jobType)) {
             // BRANCH A: Scraper to AI
@@ -209,6 +210,22 @@ async function processTasks() {
                   emailTo: job.payload.guard.emailTo,
                   metricName: job.payload.guard.metricName,
                   cooldownMinutes: job.payload.guard.cooldownMinutes || 60
+                },
+                retryCount: 0,
+                maxRetries: 3
+              });
+            }
+            // BRANCH C: Mail the fetched result directly (no threshold, no AI)
+            else if (hasEmailResults) {
+              console.log(`[Worker] 🔄 Auto-Handoff: Mailing fetched result...`);
+              await Job.create({
+                user: job.user,
+                jobType: "send_email",
+                status: "pending",
+                payload: {
+                  to: job.payload.emailResultsTo,
+                  subject: `📡 Sentinel: ${job.payload.label || 'Monitor update'}`,
+                  body: String(taskResult.value)
                 },
                 retryCount: 0,
                 maxRetries: 3
