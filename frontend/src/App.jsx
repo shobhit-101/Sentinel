@@ -1,7 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import Auth from './pages/Auth';
-import Dashboard from './pages/Dashboard';
+import Layout from './components/Layout';
+import Monitors from './pages/Monitors';
+import Tasks from './pages/Tasks';
 
 function RequireAuth({ children }) {
   const token = localStorage.getItem('sentinel_token');
@@ -11,22 +13,31 @@ function RequireAuth({ children }) {
 export default function App() {
   return (
     <BrowserRouter>
-      {/* Global Toast Notifications Config */}
       <Toaster
         position="top-right"
         toastOptions={{
           style: {
-            background: '#171717',
-            color: '#f5f5f5',
-            border: '1px solid #262626',
+            background: '#18181b',
+            color: '#fafafa',
+            border: '1px solid #27272a',
+            fontSize: '14px',
           },
         }}
       />
 
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Auth />} />
-        <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+        <Route
+          element={
+            <RequireAuth>
+              <Layout />
+            </RequireAuth>
+          }
+        >
+          <Route path="/monitors" element={<Monitors />} />
+          <Route path="/tasks" element={<Tasks />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/monitors" replace />} />
       </Routes>
     </BrowserRouter>
   );

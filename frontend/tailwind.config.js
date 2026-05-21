@@ -7,14 +7,23 @@ export default {
   theme: {
     extend: {
       colors: {
-        // We are adding a sleek, dark-mode inspired minimal color palette
-        background: '#0a0a0a',
-        surface: '#171717',
-        primary: '#3b82f6', // A clean, professional blue
-        textMain: '#f5f5f5',
-        textMuted: '#a3a3a3',
-        border: '#262626'
-      }
+        // Violet + near-black. Status accents use Tailwind's built-in
+        // cyan / amber / red scales directly.
+        background: '#09090b',
+        surface: '#111113',
+        elevated: '#18181b',
+        border: '#27272a',
+        textMain: '#fafafa',
+        textMuted: '#a1a1aa',
+        textFaint: '#52525b',
+        accent: {
+          DEFAULT: '#8b5cf6',
+          hover: '#7c3aed',
+        },
+      },
+      fontFamily: {
+        sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif'],
+      },
     },
   },
   plugins: [],
