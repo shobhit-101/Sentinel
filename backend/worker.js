@@ -209,7 +209,7 @@ async function processTasks() {
                   condition: job.payload.guard.condition,
                   emailTo: job.payload.guard.emailTo,
                   metricName: job.payload.guard.metricName,
-                  cooldownMinutes: job.payload.guard.cooldownMinutes || 60
+                  cooldownMinutes: job.payload.guard.cooldownMinutes || 10
                 },
                 retryCount: 0,
                 maxRetries: 3

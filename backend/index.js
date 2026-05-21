@@ -1,3 +1,4 @@
+
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
@@ -8,6 +9,7 @@ const moment = require("moment-timezone");
 const Redis = require("ioredis");
 
 const Job = require("./models/Job");
+const Task = require("./models/Task");
 const User = require("./models/User");
 const auth = require("./middleware/auth");
 
@@ -188,6 +190,78 @@ app.put("/jobs/:id/complete", auth, async (req, res) => {
     await job.save();
 
     res.json({ success: true, data: job });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// ==========================================
+// ✅ STATIC TASK ROUTES (to-do list)
+// ==========================================
+app.get("/tasks", auth, async (req, res) => {
+  try {
+    const tasks = await Task.find({ user: req.userId }).sort({ completed: 1, createdAt: -1 });
+    res.json({ success: true, data: tasks });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+app.post("/tasks", auth, async (req, res) => {
+  try {
+    const { title, notes, dueDate } = req.body;
+    if (!title || !title.trim()) {
+      return res.status(400).json({ success: false, error: "Task title is required" });
+    }
+    const task = await Task.create({
+      title: title.trim(),
+      notes: notes || '',
+      dueDate: dueDate || undefined,
+      user: req.userId
+    });
+    res.status(201).json({ success: true, data: task });
+  } catch (err) {
+    if (err.name === "ValidationError") {
+      return res.status(400).json({ success: false, error: err.message });
+    }
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+app.put("/tasks/:id", auth, async (req, res) => {
+  try {
+    const task = await Task.findOne({ _id: req.params.id, user: req.userId });
+    if (!task) {
+      return res.status(404).json({ success: false, error: "Task not found" });
+    }
+
+    const { title, notes, dueDate, completed } = req.body;
+    if (title !== undefined) task.title = title.trim();
+    if (notes !== undefined) task.notes = notes;
+    if (dueDate !== undefined) task.dueDate = dueDate || null;
+    if (completed !== undefined) {
+      task.completed = completed;
+      task.completedAt = completed ? new Date() : null;
+    }
+
+    await task.save();
+    res.json({ success: true, data: task });
+  } catch (err) {
+    if (err.name === "ValidationError") {
+      return res.status(400).json({ success: false, error: err.message });
+    }
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+app.delete("/tasks/:id", auth, async (req, res) => {
+  try {
+    const task = await Task.findOne({ _id: req.params.id, user: req.userId });
+    if (!task) {
+      return res.status(404).json({ success: false, error: "Task not found" });
+    }
+    await task.deleteOne();
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: "Server error" });
   }
