@@ -144,11 +144,11 @@ export default function CreateAlertModal({ open, onClose, onCreated }) {
   const symbolOptions = f.assetType === 'crypto' ? CRYPTO : STOCKS;
 
   return (
-    <Modal open={open} onClose={onClose} title="Create Alert">
+    <Modal open={open} onClose={onClose} title="Create Alert" size="lg">
       <form onSubmit={submit} className="space-y-5">
         <div>
           <label className={labelClass}>Task type</label>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {TASK_TYPES.map((t) => {
               const active = jobType === t.value;
               return (

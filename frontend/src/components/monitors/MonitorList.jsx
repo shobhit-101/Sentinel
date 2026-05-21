@@ -174,11 +174,11 @@ export default function MonitorList({ refreshKey }) {
               key={job._id}
               animate={
                 flashing
-                  ? { boxShadow: ['0 0 0 0 rgba(139,92,246,0)', '0 0 0 2px rgba(139,92,246,0.55)', '0 0 0 0 rgba(139,92,246,0)'] }
-                  : { boxShadow: '0 0 0 0 rgba(139,92,246,0)' }
+                  ? { boxShadow: ['0 0 0 0 rgba(124,58,237,0)', '0 0 0 2px rgba(124,58,237,0.6)', '0 0 0 0 rgba(124,58,237,0)'] }
+                  : { boxShadow: '0 0 0 0 rgba(124,58,237,0)' }
               }
               transition={{ duration: 1.4 }}
-              className="p-4 rounded-xl"
+              className="p-4 rounded-xl transition-colors hover:bg-background"
             >
               <div className="flex items-center gap-4">
                 <div

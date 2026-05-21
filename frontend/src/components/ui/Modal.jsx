@@ -1,7 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 
-export default function Modal({ open, onClose, title, children }) {
+export default function Modal({ open, onClose, title, children, size = 'md' }) {
+  const maxWidth = size === 'lg' ? 'max-w-2xl' : 'max-w-lg';
   return (
     <AnimatePresence>
       {open && (
@@ -16,7 +17,7 @@ export default function Modal({ open, onClose, title, children }) {
             onClick={onClose}
           />
           <motion.div
-            className="relative w-full max-w-lg bg-surface border border-border rounded-2xl shadow-2xl max-h-[88vh] flex flex-col"
+            className={`relative w-full ${maxWidth} bg-surface border border-border rounded-2xl shadow-2xl max-h-[88vh] flex flex-col`}
             initial={{ opacity: 0, scale: 0.97, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.97, y: 12 }}
