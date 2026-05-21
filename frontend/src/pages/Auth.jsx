@@ -52,11 +52,11 @@ export default function Auth() {
         className="relative w-full max-w-sm"
       >
         <div className="flex flex-col items-center mb-8">
-          <div className="w-11 h-11 rounded-xl bg-accent/15 border border-accent/25 flex items-center justify-center mb-4">
-            <Activity className="w-5 h-5 text-accent" />
+          <div className="w-12 h-12 rounded-xl bg-accent/15 border border-accent/25 flex items-center justify-center mb-4">
+            <Activity className="w-6 h-6 text-accent" />
           </div>
-          <h1 className="text-xl font-semibold tracking-tight">Sentinel</h1>
-          <p className="text-sm text-textMuted mt-1">Distributed task orchestration</p>
+          <h1 className="text-4xl font-bold tracking-tight">Sentinel</h1>
+          <p className="text-sm text-textMuted mt-2">Distributed task orchestration</p>
         </div>
 
         <div className="bg-surface border border-border rounded-2xl p-6">
