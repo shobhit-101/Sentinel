@@ -1,5 +1,6 @@
 
 require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
@@ -97,8 +98,25 @@ app.get("/", (req, res) => {
 // ==========================================
 app.get("/jobs", auth, async (req, res) => {
   try {
-    const jobs = await Job.find({ user: req.userId }).sort({ createdAt: -1 });
+    // Task-reminder jobs are an implementation detail of the to-do list —
+    // keep them out of the Monitors view.
+    const jobs = await Job.find({
+      user: req.userId,
+      "payload.isTaskReminder": { $ne: true }
+    }).sort({ createdAt: -1 });
     res.json({ success: true, data: jobs });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+app.get("/jobs/:id", auth, async (req, res) => {
+  try {
+    const job = await Job.findOne({ _id: req.params.id, user: req.userId });
+    if (!job) {
+      return res.status(404).json({ success: false, error: "Job not found" });
+    }
+    res.json({ success: true, data: job });
   } catch (err) {
     res.status(500).json({ success: false, error: "Server error" });
   }
@@ -198,6 +216,36 @@ app.put("/jobs/:id/complete", auth, async (req, res) => {
 // ==========================================
 // ✅ STATIC TASK ROUTES (to-do list)
 // ==========================================
+
+// A task's optional email reminder is delivered by a companion send_email
+// Job scheduled at the due date. We rebuild it from scratch on every task
+// change so the job always reflects current task state.
+async function syncTaskReminder(task, userEmail) {
+  if (task.reminderJobId) {
+    await Job.deleteOne({ _id: task.reminderJobId });
+    task.reminderJobId = null;
+  }
+  if (task.remindByEmail && task.dueDate && !task.completed) {
+    const job = await Job.create({
+      user: task.user,
+      jobType: "send_email",
+      status: "pending",
+      scheduledAt: task.dueDate,
+      payload: {
+        isTaskReminder: true,
+        to: userEmail,
+        subject: `⏰ Task reminder: ${task.title}`,
+        body: task.description
+          ? `${task.title}\n\n${task.description}`
+          : task.title
+      },
+      retryCount: 0,
+      maxRetries: 3
+    });
+    task.reminderJobId = job._id;
+  }
+}
+
 app.get("/tasks", auth, async (req, res) => {
   try {
     const tasks = await Task.find({ user: req.userId }).sort({ completed: 1, createdAt: -1 });
@@ -209,16 +257,20 @@ app.get("/tasks", auth, async (req, res) => {
 
 app.post("/tasks", auth, async (req, res) => {
   try {
-    const { title, notes, dueDate } = req.body;
+    const { title, description, dueDate, remindByEmail } = req.body;
     if (!title || !title.trim()) {
       return res.status(400).json({ success: false, error: "Task title is required" });
     }
-    const task = await Task.create({
+    const user = await User.findById(req.userId);
+    const task = new Task({
       title: title.trim(),
-      notes: notes || '',
+      description: description || '',
       dueDate: dueDate || undefined,
+      remindByEmail: !!remindByEmail,
       user: req.userId
     });
+    await syncTaskReminder(task, user.email);
+    await task.save();
     res.status(201).json({ success: true, data: task });
   } catch (err) {
     if (err.name === "ValidationError") {
@@ -235,15 +287,18 @@ app.put("/tasks/:id", auth, async (req, res) => {
       return res.status(404).json({ success: false, error: "Task not found" });
     }
 
-    const { title, notes, dueDate, completed } = req.body;
+    const { title, description, dueDate, remindByEmail, completed } = req.body;
     if (title !== undefined) task.title = title.trim();
-    if (notes !== undefined) task.notes = notes;
+    if (description !== undefined) task.description = description;
     if (dueDate !== undefined) task.dueDate = dueDate || null;
+    if (remindByEmail !== undefined) task.remindByEmail = !!remindByEmail;
     if (completed !== undefined) {
       task.completed = completed;
       task.completedAt = completed ? new Date() : null;
     }
 
+    const user = await User.findById(req.userId);
+    await syncTaskReminder(task, user.email);
     await task.save();
     res.json({ success: true, data: task });
   } catch (err) {
@@ -259,6 +314,9 @@ app.delete("/tasks/:id", auth, async (req, res) => {
     const task = await Task.findOne({ _id: req.params.id, user: req.userId });
     if (!task) {
       return res.status(404).json({ success: false, error: "Task not found" });
+    }
+    if (task.reminderJobId) {
+      await Job.deleteOne({ _id: task.reminderJobId });
     }
     await task.deleteOne();
     res.json({ success: true });

@@ -2,19 +2,29 @@ const mongoose = require('mongoose');
 
 // Static to-do items. Deliberately separate from Job: a Task is something
 // the user tracks by hand, not something the orchestration engine executes.
-// It never touches the Redis stream or the workers.
+// An optional email reminder is delivered via a companion send_email Job
+// (see syncTaskReminder in index.js) scheduled at the due date.
 const taskSchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
     trim: true
   },
-  notes: {
+  description: {
     type: String,
     default: ''
   },
   dueDate: {
     type: Date
+  },
+  remindByEmail: {
+    type: Boolean,
+    default: false
+  },
+  reminderJobId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Job',
+    default: null
   },
   completed: {
     type: Boolean,
