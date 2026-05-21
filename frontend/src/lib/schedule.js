@@ -1,8 +1,13 @@
-// Local datetime string (YYYY-MM-DDTHH:MM) for <input type="datetime-local">.
-export function nowLocalDatetime() {
-  const d = new Date();
+// Format any date as a local YYYY-MM-DDTHH:MM string for datetime-local inputs.
+export function toDatetimeLocal(d) {
+  if (!d) return '';
+  const date = new Date(d);
   const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+export function nowLocalDatetime() {
+  return toDatetimeLocal(new Date());
 }
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
