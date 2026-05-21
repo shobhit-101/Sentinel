@@ -1,10 +1,16 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { Database, Globe, Mail, ShieldAlert, Sparkles, Trophy, Clock, Pause, Play, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import { cn } from '../../lib/cn';
 import { cronLabel } from '../../lib/schedule';
+import { playPing } from '../../lib/sound';
 import StatusBadge from '../ui/StatusBadge';
+import JobDetailModal from './JobDetailModal';
+
+// Active monitors float to the top; settled ones sink.
+const STATUS_RANK = { processing: 0, queued: 1, pending: 2, paused: 3, completed: 4, failed: 5 };
 
 function jobIcon(job) {
   const t = job.jobType;
@@ -30,6 +36,14 @@ function jobTypeLabel(job) {
 function jobTarget(job) {
   const p = job.payload || {};
   return p.symbol || p.url || p.to || p.label || p.metricName || '—';
+}
+
+function lastRunText(job) {
+  if (!job.lastRunAt) return 'Not run yet';
+  const d = new Date(job.lastRunAt);
+  return 'Last run ' + d.toLocaleString(undefined, {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+  });
 }
 
 function renderResult(job) {
@@ -70,11 +84,31 @@ function renderResult(job) {
 export default function MonitorList({ refreshKey }) {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [flashIds, setFlashIds] = useState(new Set());
+  const [detailId, setDetailId] = useState(null);
+  const prevRunRef = useRef(null); // { id: lastRunAt } from the previous fetch
 
   const fetchJobs = useCallback(async () => {
     try {
       const { data } = await api.get('/jobs');
-      setJobs(data.data);
+      const next = data.data;
+
+      // Detect updates: a job's lastRunAt advanced, or a brand-new job appeared.
+      const prev = prevRunRef.current;
+      if (prev) {
+        const changed = next.filter(
+          (j) => !(j._id in prev) || prev[j._id] !== (j.lastRunAt || '')
+        );
+        if (changed.length > 0) {
+          playPing();
+          const ids = new Set(changed.map((j) => j._id));
+          setFlashIds(ids);
+          setTimeout(() => setFlashIds(new Set()), 1500);
+        }
+      }
+      prevRunRef.current = Object.fromEntries(next.map((j) => [j._id, j.lastRunAt || '']));
+
+      setJobs(next);
     } catch {
       /* 401 handled globally */
     } finally {
@@ -84,7 +118,6 @@ export default function MonitorList({ refreshKey }) {
 
   useEffect(() => { fetchJobs(); }, [fetchJobs, refreshKey]);
 
-  // Poll while anything is still in flight; stop when everything settles.
   useEffect(() => {
     const inFlight = jobs.some((j) => ['pending', 'queued', 'processing'].includes(j.status));
     if (!inFlight) return;
@@ -125,50 +158,77 @@ export default function MonitorList({ refreshKey }) {
     );
   }
 
+  const sorted = [...jobs].sort(
+    (a, b) => (STATUS_RANK[a.status] ?? 9) - (STATUS_RANK[b.status] ?? 9)
+  );
+
   return (
-    <div className="bg-surface border border-border rounded-xl divide-y divide-border">
-      {jobs.map((job) => {
-        const Icon = jobIcon(job);
-        const result = renderResult(job);
-        return (
-          <div key={job._id} className="p-4">
-            <div className="flex items-center gap-4">
-              <div className="w-9 h-9 rounded-lg bg-background border border-border flex items-center justify-center shrink-0">
-                <Icon className="w-4 h-4 text-accent" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{jobTypeLabel(job)}</span>
-                  <StatusBadge status={job.status} />
-                </div>
-                <div className="text-xs text-textMuted truncate mt-0.5">{jobTarget(job)}</div>
-              </div>
-              <div className="text-xs text-textMuted shrink-0 hidden sm:block">
-                {cronLabel(job.cronExpression)}
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                {['pending', 'paused'].includes(job.status) && (
-                  <button
-                    onClick={() => toggle(job)}
-                    className="p-1.5 rounded-md text-textMuted hover:text-accent hover:bg-elevated transition-colors"
-                    title={job.status === 'pending' ? 'Pause' : 'Resume'}
-                  >
-                    {job.status === 'pending' ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                  </button>
-                )}
-                <button
-                  onClick={() => remove(job)}
-                  className="p-1.5 rounded-md text-textMuted hover:text-red-400 hover:bg-elevated transition-colors"
-                  title="Delete"
+    <>
+      <div className="bg-surface border border-border rounded-xl divide-y divide-border">
+        {sorted.map((job) => {
+          const Icon = jobIcon(job);
+          const result = renderResult(job);
+          const flashing = flashIds.has(job._id);
+          return (
+            <motion.div
+              key={job._id}
+              animate={
+                flashing
+                  ? { boxShadow: ['0 0 0 0 rgba(139,92,246,0)', '0 0 0 2px rgba(139,92,246,0.55)', '0 0 0 0 rgba(139,92,246,0)'] }
+                  : { boxShadow: '0 0 0 0 rgba(139,92,246,0)' }
+              }
+              transition={{ duration: 1.4 }}
+              className="p-4 rounded-xl"
+            >
+              <div className="flex items-center gap-4">
+                <div
+                  onClick={() => setDetailId(job._id)}
+                  className="flex items-center gap-4 min-w-0 flex-1 cursor-pointer"
                 >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                  <div className="w-9 h-9 rounded-lg bg-background border border-border flex items-center justify-center shrink-0">
+                    <Icon className="w-4 h-4 text-accent" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{jobTypeLabel(job)}</span>
+                      <StatusBadge status={job.status} />
+                    </div>
+                    <div className="text-xs text-textMuted truncate mt-0.5">{jobTarget(job)}</div>
+                    <div className="text-xs text-textFaint mt-0.5">
+                      {cronLabel(job.cronExpression)} · {lastRunText(job)}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {['pending', 'paused'].includes(job.status) && (
+                    <button
+                      onClick={() => toggle(job)}
+                      className="p-1.5 rounded-md text-textMuted hover:text-accent hover:bg-elevated transition-colors"
+                      title={job.status === 'pending' ? 'Pause' : 'Resume'}
+                    >
+                      {job.status === 'pending' ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => remove(job)}
+                    className="p-1.5 rounded-md text-textMuted hover:text-red-400 hover:bg-elevated transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-            </div>
-            {result && <div className="mt-3">{result}</div>}
-          </div>
-        );
-      })}
-    </div>
+              {result && (
+                <div onClick={() => setDetailId(job._id)} className="mt-3 cursor-pointer">
+                  {result}
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
+      </div>
+
+      <JobDetailModal jobId={detailId} open={!!detailId} onClose={() => setDetailId(null)} />
+    </>
   );
 }
