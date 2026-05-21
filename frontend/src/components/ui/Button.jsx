@@ -1,7 +1,7 @@
 import { cn } from '../../lib/cn';
 
 const variants = {
-  primary: 'bg-accent hover:bg-accent-hover text-white',
+  primary: 'bg-accent hover:bg-accent-hover text-white border border-transparent hover:border-violet-900',
   ghost: 'border border-border text-textMain hover:bg-elevated',
   subtle: 'text-textMuted hover:text-textMain hover:bg-elevated',
   danger: 'text-textMuted hover:text-red-400 hover:bg-red-400/10',

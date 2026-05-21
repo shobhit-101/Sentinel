@@ -42,8 +42,10 @@ export default function RecurrencePicker({ onChange }) {
             key={m}
             onClick={() => setMode(m)}
             className={cn(
-              'flex-1 text-sm py-1.5 rounded-md transition-colors',
-              mode === m ? 'bg-accent text-white' : 'text-textMuted hover:text-textMain'
+              'flex-1 text-sm py-1.5 rounded-md transition-colors border border-transparent',
+              mode === m
+                ? 'bg-accent text-white hover:border-violet-900'
+                : 'text-textMuted hover:text-textMain'
             )}
           >
             {label}

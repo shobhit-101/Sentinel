@@ -164,7 +164,7 @@ export default function MonitorList({ refreshKey }) {
 
   return (
     <>
-      <div className="bg-surface border border-border rounded-xl divide-y divide-border">
+      <div className="space-y-2">
         {sorted.map((job) => {
           const Icon = jobIcon(job);
           const result = renderResult(job);
@@ -178,7 +178,7 @@ export default function MonitorList({ refreshKey }) {
                   : { boxShadow: '0 0 0 0 rgba(139,92,246,0)' }
               }
               transition={{ duration: 1.4 }}
-              className="p-4 rounded-xl transition-colors hover:bg-background"
+              className="bg-background border border-border rounded-xl p-4 transition-colors hover:bg-elevated"
             >
               <div className="flex items-center gap-4">
                 <div

@@ -5,7 +5,6 @@ import Home from './pages/Home';
 import Layout from './components/Layout';
 import Monitors from './pages/Monitors';
 import Tasks from './pages/Tasks';
-import GridBackground from './components/GridBackground';
 
 function RequireAuth({ children }) {
   const token = localStorage.getItem('sentinel_token');
@@ -15,7 +14,6 @@ function RequireAuth({ children }) {
 export default function App() {
   return (
     <BrowserRouter>
-      <GridBackground />
       <Toaster
         position="top-right"
         toastOptions={{

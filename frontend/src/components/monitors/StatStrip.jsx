@@ -21,7 +21,7 @@ export default function StatStrip({ refreshKey }) {
   return (
     <div className="grid grid-cols-3 gap-4">
       {cards.map((c) => (
-        <div key={c.label} className="bg-surface border border-border rounded-xl p-4">
+        <div key={c.label} className="bg-background border border-border rounded-xl p-4">
           <div className="flex items-center gap-2 text-textMuted text-xs font-medium">
             <c.icon className={cn('w-4 h-4', c.color)} />
             {c.label}

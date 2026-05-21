@@ -40,11 +40,6 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background text-textMain">
-      {/* soft violet glow */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-48 left-1/2 -translate-x-1/2 w-[640px] h-[640px] rounded-full bg-accent/10 blur-[140px]" />
-      </div>
-
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
@@ -56,7 +51,7 @@ export default function Auth() {
             <Activity className="w-6 h-6 text-accent" />
           </div>
           <h1 className="text-4xl font-bold tracking-tight">Sentinel</h1>
-          <p className="text-sm text-textMuted mt-2">Distributed task orchestration</p>
+          <p className="text-sm text-textMuted mt-2">Distributed monitoring &amp; automation</p>
         </div>
 
         <div className="bg-surface border border-border rounded-2xl p-6">

@@ -7,7 +7,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        // True-black base, vibrant violet, cyan as the secondary accent.
+        // True-black base, deep vibrant violet, cyan as the secondary accent.
         // Red / amber are reserved for failure and in-progress states.
         background: '#000000',
         surface: '#111113',
@@ -17,8 +17,8 @@ export default {
         textMuted: '#a1a1aa',
         textFaint: '#52525b',
         accent: {
-          DEFAULT: '#8b5cf6',
-          hover: '#7c3aed',
+          DEFAULT: '#7c3aed',
+          hover: '#6d28d9',
         },
       },
       fontFamily: {
