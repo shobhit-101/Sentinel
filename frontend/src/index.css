@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Bumps the whole UI ~12% — text and rem-based spacing scale together. */
+html {
+  font-size: 18px;
+}
+
 html,
 body,
 #root {
@@ -9,7 +14,7 @@ body,
 }
 
 body {
-  background-color: #09090b;
+  background-color: #000000;
   color: #fafafa;
   font-family: 'Atkinson Hyperlegible', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -32,6 +37,6 @@ body {
 }
 
 ::selection {
-  background: #7c3aed;
+  background: #8b5cf6;
   color: #ffffff;
 }

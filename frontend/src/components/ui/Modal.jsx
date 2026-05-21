@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 
 export default function Modal({ open, onClose, title, children, size = 'md' }) {
-  const maxWidth = size === 'lg' ? 'max-w-2xl' : 'max-w-lg';
+  const maxWidth = size === 'lg' ? 'max-w-3xl' : 'max-w-lg';
   return (
     <AnimatePresence>
       {open && (
@@ -32,7 +32,7 @@ export default function Modal({ open, onClose, title, children, size = 'md' }) {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="overflow-y-auto p-6">{children}</div>
+            <div className="overflow-y-auto p-7">{children}</div>
           </motion.div>
         </motion.div>
       )}

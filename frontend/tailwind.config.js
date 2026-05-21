@@ -7,9 +7,9 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Violet + near-black. Status accents use Tailwind's built-in
-        // cyan / amber / red scales directly.
-        background: '#09090b',
+        // True-black base, vibrant violet, cyan as the secondary accent.
+        // Red / amber are reserved for failure and in-progress states.
+        background: '#000000',
         surface: '#111113',
         elevated: '#18181b',
         border: '#27272a',
@@ -17,8 +17,8 @@ export default {
         textMuted: '#a1a1aa',
         textFaint: '#52525b',
         accent: {
-          DEFAULT: '#7c3aed',
-          hover: '#6d28d9',
+          DEFAULT: '#8b5cf6',
+          hover: '#7c3aed',
         },
       },
       fontFamily: {
