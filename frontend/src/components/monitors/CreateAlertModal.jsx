@@ -1,22 +1,31 @@
 import { useState } from 'react';
+import { Database, Globe, Trophy, Mail, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import { cn } from '../../lib/cn';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
+import InfoHint from '../ui/InfoHint';
 import RecurrencePicker from './RecurrencePicker';
 import { inputClass, labelClass, hintClass } from '../ui/field';
 
 const TASK_TYPES = [
-  { value: 'api_ninja', label: 'Financial Asset Tracker' },
-  { value: 'price_scraper', label: 'Custom Web Scraper' },
-  { value: 'codeforces', label: 'Codeforces Contests' },
-  { value: 'send_email', label: 'Automated Email Dispatch' },
+  { value: 'api_ninja', label: 'Financial Tracker', desc: 'Crypto, stocks & gold', icon: Database },
+  { value: 'price_scraper', label: 'Custom Web Scraper', desc: 'Track any value on any page', icon: Globe, ai: true },
+  { value: 'codeforces', label: 'Codeforces Contests', desc: 'Upcoming contest list', icon: Trophy },
+  { value: 'send_email', label: 'Automated Email', desc: 'Send a scheduled email', icon: Mail },
 ];
 
 const CRYPTO = [['BTCUSDT', 'Bitcoin'], ['ETHUSDT', 'Ethereum'], ['SOLUSDT', 'Solana']];
 const STOCKS = [['AAPL', 'Apple'], ['NVDA', 'NVIDIA'], ['TSLA', 'Tesla']];
 const COOLDOWNS = [[10, '10 minutes'], [30, '30 minutes'], [60, '1 hour'], [360, '6 hours']];
+
+const SELECTOR_HELP =
+  'A CSS selector points at the element to read. In Chrome: right-click the value on the page → Inspect → right-click the highlighted HTML → Copy → Copy selector.';
+const THRESHOLD_HELP =
+  'You get an email when the tracked value crosses this. Leave it blank to just record the value without alerting.';
+const AI_HELP =
+  'Describe what the AI should do with the scraped text. Whatever you ask for is emailed back verbatim — the numeric threshold is ignored when this is set.';
 
 const initialForm = {
   assetType: 'crypto', symbol: 'BTCUSDT',
@@ -30,7 +39,10 @@ const initialForm = {
 function ThresholdBlock({ f, set }) {
   return (
     <div className="rounded-lg border border-border p-3 space-y-3">
-      <p className="text-xs font-semibold text-accent">Alert threshold (optional)</p>
+      <p className="text-xs font-semibold text-textMain flex items-center gap-1.5">
+        Alert threshold <span className="text-textFaint font-normal">(optional)</span>
+        <InfoHint text={THRESHOLD_HELP} />
+      </p>
       <div className="grid grid-cols-2 gap-3">
         <select value={f.condition} onChange={(e) => set('condition', e.target.value)} className={inputClass}>
           <option value="less_than">Drops below</option>
@@ -62,7 +74,6 @@ function ThresholdBlock({ f, set }) {
           {COOLDOWNS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
       </div>
-      <p className={hintClass}>Leave the target blank to just track the value without emailing.</p>
     </div>
   );
 }
@@ -137,9 +148,31 @@ export default function CreateAlertModal({ open, onClose, onCreated }) {
       <form onSubmit={submit} className="space-y-5">
         <div>
           <label className={labelClass}>Task type</label>
-          <select value={jobType} onChange={(e) => setJobType(e.target.value)} className={inputClass}>
-            {TASK_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </select>
+          <div className="grid grid-cols-2 gap-2">
+            {TASK_TYPES.map((t) => {
+              const active = jobType === t.value;
+              return (
+                <button
+                  type="button"
+                  key={t.value}
+                  onClick={() => setJobType(t.value)}
+                  className={cn(
+                    'relative text-left rounded-xl border p-3 transition-colors',
+                    active ? 'border-accent bg-accent/10' : 'border-border hover:bg-elevated'
+                  )}
+                >
+                  {t.ai && (
+                    <span className="absolute top-2 right-2 text-[10px] font-bold tracking-wide px-1.5 py-0.5 rounded bg-accent text-white">
+                      AI
+                    </span>
+                  )}
+                  <t.icon className={cn('w-4 h-4', active ? 'text-accent' : 'text-textMuted')} />
+                  <p className="text-sm font-medium mt-2">{t.label}</p>
+                  <p className="text-xs text-textMuted mt-0.5">{t.desc}</p>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {jobType === 'api_ninja' && (
@@ -183,7 +216,9 @@ export default function CreateAlertModal({ open, onClose, onCreated }) {
               <input type="url" placeholder="https://…" value={f.url} onChange={(e) => set('url', e.target.value)} className={inputClass} required />
             </div>
             <div>
-              <label className={labelClass}>CSS selector</label>
+              <label className={cn(labelClass, 'flex items-center gap-1.5')}>
+                CSS selector <InfoHint text={SELECTOR_HELP} />
+              </label>
               <input placeholder=".price" value={f.selector} onChange={(e) => set('selector', e.target.value)} className={inputClass} required />
             </div>
             <div>
@@ -191,22 +226,27 @@ export default function CreateAlertModal({ open, onClose, onCreated }) {
               <input placeholder="What you're tracking" value={f.label} onChange={(e) => set('label', e.target.value)} className={inputClass} required />
             </div>
             <ThresholdBlock f={f} set={set} />
-            <div>
-              <label className={labelClass}>AI instructions (optional)</label>
+            <div className="rounded-lg border border-accent/30 bg-accent/5 p-3 space-y-2">
+              <p className="text-xs font-semibold text-accent flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" />
+                AI Pipeline
+                <span className="text-accent/60 font-normal">(optional)</span>
+                <InfoHint text={AI_HELP} />
+              </p>
               <textarea
                 placeholder="e.g. Summarise the scraped text in one line."
                 value={f.aiInstructions}
                 onChange={(e) => set('aiInstructions', e.target.value)}
                 className={cn(inputClass, 'h-20 resize-none')}
               />
-              <p className={hintClass}>If set, the AI processes the page instead of the threshold.</p>
+              <p className={hintClass}>When set, the AI handles the page and emails you its full reply — the threshold above is skipped.</p>
             </div>
           </div>
         )}
 
         {jobType === 'codeforces' && (
           <div className="space-y-2">
-            <p className="text-sm text-textMuted">Fetches the list of upcoming Codeforces contests each run.</p>
+            <p className="text-sm text-textMuted">Fetches the list of upcoming Codeforces contests on each run.</p>
             <div>
               <label className={labelClass}>Email the contest list to (optional)</label>
               <input type="email" placeholder="you@example.com" value={f.cfEmail} onChange={(e) => set('cfEmail', e.target.value)} className={inputClass} />
