@@ -71,6 +71,7 @@ export default function JobList() {
     switch(type) {
       case 'api_ninja': return <Database className="w-5 h-5 text-blue-400" />;
       case 'price_scraper': return <Globe className="w-5 h-5 text-emerald-400" />;
+      case 'keyword_alert': return <Globe className="w-5 h-5 text-emerald-400" />;
       case 'send_email': return <Mail className="w-5 h-5 text-amber-400" />;
       case 'content_summary': return <Brain className="w-5 h-5 text-purple-400" />;
       case 'condition_guard': return <Activity className="w-5 h-5 text-rose-400" />;
@@ -107,7 +108,7 @@ export default function JobList() {
             {isNum ? `$${v}` : v}
           </div>
           <div className="text-xs text-textMuted mt-1">
-            Last checked: {new Date(job.lastRunAt).toLocaleTimeString()}
+            Last checked: {new Date(job.lastRunAt).toLocaleString()}
           </div>
         </div>
       );
