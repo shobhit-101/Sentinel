@@ -23,11 +23,9 @@ export default function CreateJobModal({ isOpen, onClose, onSuccess }) {
     url: '',
     selector: '',
     metricName: '',
-    condition: 'less_than', 
+    condition: 'less_than',
     targetValue: '',
     emailTo: '',
-    textToSummarize: '',
-    tone: 'professional',
     taskName: '',
     description: ''
   });
@@ -77,12 +75,6 @@ export default function CreateJobModal({ isOpen, onClose, onSuccess }) {
           emailTo: payload.emailTo, // Now safely passes empty strings
           cooldownMinutes: 60
         }
-      };
-    } else if (jobType === 'content_summary') {
-      finalPayload = {
-        textToSummarize: payload.textToSummarize,
-        tone: payload.tone,
-        emailTo: payload.emailTo // Now safely passes empty strings
       };
     } else if (jobType === 'codeforces') {
       finalJobType = 'api_ninja';
@@ -142,8 +134,7 @@ export default function CreateJobModal({ isOpen, onClose, onSuccess }) {
                 <option value="price_scraper">Website Price Scraper</option>
                 <option value="codeforces">Codeforces Contests</option>
               </optgroup>
-              <optgroup label="AI & Automation">
-                <option value="content_summary">AI Market Sentiment Analyst</option>
+              <optgroup label="Automation">
                 <option value="send_email">Automated Email Dispatch</option>
               </optgroup>
               <optgroup label="Personal Tools">
@@ -251,26 +242,6 @@ export default function CreateJobModal({ isOpen, onClose, onSuccess }) {
             />
             <p className="text-xs text-textMuted italic">Note: If you use AI, the Guard threshold above will be ignored, and the AI will email you its report directly.</p>
           </div>
-              </>
-            )}
-
-            {jobType === 'content_summary' && (
-              <>
-                <label className="block text-xs text-textMuted mb-1">Text to Analyze (News/Tweets/Reports)</label>
-                <textarea placeholder="Paste market news or a CEO quote here..." value={payload.textToSummarize} onChange={(e) => setPayload({...payload, textToSummarize: e.target.value})} className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm h-32 mb-3" required />
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs text-textMuted mb-1">Analysis Type</label>
-                    <select value={payload.tone} onChange={(e) => setPayload({...payload, tone: e.target.value})} className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm opacity-50 cursor-not-allowed" disabled>
-                      <option value="professional">Quant Sentiment Score</option>
-                    </select>
-                  </div>
-                  <div>
-                    {/* 🌟 REMOVED REQUIRED, CHANGED LABEL TO OPTIONAL */}
-                    <label className="block text-xs text-textMuted mb-1">Send Alert To (Optional)</label>
-                    <input type="email" placeholder="your-email@gmail.com" value={payload.emailTo} onChange={(e) => setPayload({...payload, emailTo: e.target.value})} className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm" />
-                  </div>
-                </div>
               </>
             )}
 
