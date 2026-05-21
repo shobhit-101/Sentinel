@@ -9,7 +9,7 @@ import { inputClass, labelClass, hintClass } from '../ui/field';
 
 const TASK_TYPES = [
   { value: 'api_ninja', label: 'Financial Asset Tracker' },
-  { value: 'price_scraper', label: 'Website Price Scraper' },
+  { value: 'price_scraper', label: 'Custom Web Scraper' },
   { value: 'codeforces', label: 'Codeforces Contests' },
   { value: 'send_email', label: 'Automated Email Dispatch' },
 ];

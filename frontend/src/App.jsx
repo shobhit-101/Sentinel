@@ -1,9 +1,11 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import Auth from './pages/Auth';
+import Home from './pages/Home';
 import Layout from './components/Layout';
 import Monitors from './pages/Monitors';
 import Tasks from './pages/Tasks';
+import GridBackground from './components/GridBackground';
 
 function RequireAuth({ children }) {
   const token = localStorage.getItem('sentinel_token');
@@ -13,6 +15,7 @@ function RequireAuth({ children }) {
 export default function App() {
   return (
     <BrowserRouter>
+      <GridBackground />
       <Toaster
         position="top-right"
         toastOptions={{
@@ -27,6 +30,7 @@ export default function App() {
 
       <Routes>
         <Route path="/login" element={<Auth />} />
+        <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
         <Route
           element={
             <RequireAuth>
@@ -37,7 +41,7 @@ export default function App() {
           <Route path="/monitors" element={<Monitors />} />
           <Route path="/tasks" element={<Tasks />} />
         </Route>
-        <Route path="*" element={<Navigate to="/monitors" replace />} />
+        <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
     </BrowserRouter>
   );

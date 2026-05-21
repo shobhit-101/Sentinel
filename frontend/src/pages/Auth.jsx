@@ -26,7 +26,7 @@ export default function Auth() {
       if (isLogin) {
         localStorage.setItem('sentinel_token', data.token);
         toast.success('Welcome back');
-        navigate('/monitors');
+        navigate('/home');
       } else {
         toast.success('Account created — log in');
         setIsLogin(true);
