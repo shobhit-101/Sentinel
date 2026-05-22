@@ -178,14 +178,14 @@ export default function MonitorList({ refreshKey }) {
                   : { boxShadow: '0 0 0 0 rgba(139,92,246,0)' }
               }
               transition={{ duration: 1.4 }}
-              className="bg-background border border-border rounded-xl p-4 transition-colors hover:bg-elevated"
+              className="panel panel-hover rounded-xl p-4"
             >
               <div className="flex items-center gap-4">
                 <div
                   onClick={() => setDetailId(job._id)}
                   className="flex items-center gap-4 min-w-0 flex-1 cursor-pointer"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-background border border-border flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center shrink-0">
                     <Icon className="w-4 h-4 text-accent" />
                   </div>
                   <div className="min-w-0 flex-1">

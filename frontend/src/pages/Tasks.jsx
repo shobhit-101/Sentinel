@@ -26,7 +26,7 @@ function TaskCard({ task, onToggle, onEdit, onRemove }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.15 }}
-      className="group flex gap-3 bg-surface border border-border rounded-lg px-3.5 py-3"
+      className="group flex gap-3 panel panel-hover rounded-xl px-4 py-3.5"
     >
       <button
         onClick={() => onToggle(task)}
@@ -117,7 +117,10 @@ export default function Tasks() {
   return (
     <div className="flex flex-col h-full">
       <header className="h-16 shrink-0 border-b border-border flex items-center justify-between px-8">
-        <h1 className="text-lg font-semibold tracking-tight">Tasks</h1>
+        <div>
+          <h1 className="text-lg font-bold tracking-tight">Tasks</h1>
+          <p className="text-xs text-textMuted">Your personal to-do list</p>
+        </div>
         <Button onClick={openNew}>
           <Plus className="w-4 h-4" />
           Add task

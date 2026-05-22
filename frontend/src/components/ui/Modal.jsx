@@ -13,18 +13,18 @@ export default function Modal({ open, onClose, title, children, size = 'md' }) {
           exit={{ opacity: 0 }}
         >
           <div
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/75 backdrop-blur-md"
             onClick={onClose}
           />
           <motion.div
-            className={`relative w-full ${maxWidth} bg-surface border border-border rounded-2xl shadow-2xl max-h-[88vh] flex flex-col`}
+            className={`relative w-full ${maxWidth} panel rounded-2xl max-h-[88vh] flex flex-col shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)]`}
             initial={{ opacity: 0, scale: 0.97, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.97, y: 12 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
           >
-            <div className="flex items-center justify-between px-6 h-14 border-b border-border shrink-0">
-              <h2 className="font-semibold tracking-tight">{title}</h2>
+            <div className="flex items-center justify-between px-7 h-14 border-b border-border shrink-0">
+              <h2 className="font-bold tracking-tight">{title}</h2>
               <button
                 onClick={onClose}
                 className="text-textMuted hover:text-textMain transition-colors"

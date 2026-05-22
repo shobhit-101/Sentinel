@@ -12,14 +12,17 @@ export default function Monitors() {
   return (
     <div className="flex flex-col h-full">
       <header className="h-16 shrink-0 border-b border-border flex items-center justify-between px-8">
-        <h1 className="text-lg font-semibold tracking-tight">Monitors</h1>
+        <div>
+          <h1 className="text-lg font-bold tracking-tight">Monitors</h1>
+          <p className="text-xs text-textMuted">Automated trackers running on a schedule</p>
+        </div>
         <Button onClick={() => setModalOpen(true)}>
           <Plus className="w-4 h-4" />
           Create Alert
         </Button>
       </header>
 
-      <div className="flex-1 p-8 space-y-6">
+      <div className="flex-1 p-8 space-y-7 max-w-5xl w-full mx-auto">
         <StatStrip refreshKey={refreshKey} />
         <MonitorList refreshKey={refreshKey} />
       </div>

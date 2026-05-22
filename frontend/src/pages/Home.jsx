@@ -59,9 +59,9 @@ export default function Home() {
             transition={{ duration: 0.35, ease: 'easeOut', delay: 0.1 + i * 0.08 }}
             whileHover={{ y: -3 }}
             onClick={() => navigate(c.to)}
-            className="group text-left bg-surface border border-border rounded-2xl p-6 hover:border-accent/50 transition-colors"
+            className="group text-left panel panel-hover rounded-2xl p-6"
           >
-            <div className="w-11 h-11 rounded-xl bg-accent/15 border border-accent/25 flex items-center justify-center mb-4">
+            <div className="w-12 h-12 rounded-xl bg-accent/15 border border-accent/30 flex items-center justify-center mb-4 shadow-[0_0_22px_-6px_rgba(124,58,237,0.7)]">
               <c.icon className="w-5 h-5 text-accent" />
             </div>
             <h3 className="text-lg font-semibold tracking-tight">{c.title}</h3>

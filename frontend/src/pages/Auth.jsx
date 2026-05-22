@@ -47,14 +47,14 @@ export default function Auth() {
         className="relative w-full max-w-sm"
       >
         <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 rounded-xl bg-accent/15 border border-accent/25 flex items-center justify-center mb-4">
-            <Activity className="w-6 h-6 text-accent" />
+          <div className="w-14 h-14 rounded-2xl bg-accent/15 border border-accent/30 flex items-center justify-center mb-4 shadow-[0_0_28px_-4px_rgba(124,58,237,0.7)]">
+            <Activity className="w-7 h-7 text-accent" />
           </div>
-          <h1 className="text-4xl font-bold tracking-tight">Sentinel</h1>
+          <h1 className="text-5xl font-bold tracking-tight">Sentinel</h1>
           <p className="text-sm text-textMuted mt-2">Distributed monitoring &amp; automation</p>
         </div>
 
-        <div className="bg-surface border border-border rounded-2xl p-6">
+        <div className="panel rounded-2xl p-7">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-textMuted mb-1.5">Email</label>
