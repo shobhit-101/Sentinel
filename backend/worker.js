@@ -38,10 +38,14 @@ const DISPATCH = {
 })();
 
 // 2. Configuration & Constants
-const redis = new Redis({
-  host: process.env.REDIS_HOST || "127.0.0.1",
-  port: Number(process.env.REDIS_PORT) || 6379,
-});
+// Managed Redis (e.g. Render Key Value) hands out a single connection URL;
+// locally we fall back to host/port.
+const redis = process.env.REDIS_URL
+  ? new Redis(process.env.REDIS_URL)
+  : new Redis({
+      host: process.env.REDIS_HOST || "127.0.0.1",
+      port: Number(process.env.REDIS_PORT) || 6379,
+    });
 
 const GROUP_NAME = "sentinel_workers";
 const CONSUMER_NAME = "worker_1";
@@ -341,3 +345,17 @@ async function processTasks() {
 }
 
 processTasks();
+
+// Minimal HTTP endpoint. The worker has no HTTP role, but exposing a health
+// port lets it deploy as a standard web service on hosts that bill or gate
+// background workers separately. Harmless when run as a plain process.
+const http = require("http");
+const healthPort = process.env.PORT || 4000;
+http
+  .createServer((req, res) => {
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    res.end("sentinel worker ok");
+  })
+  .listen(healthPort, () => {
+    console.log(`[Worker] Health endpoint on :${healthPort}`);
+  });

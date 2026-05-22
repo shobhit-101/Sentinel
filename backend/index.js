@@ -15,7 +15,9 @@ const User = require("./models/User");
 const auth = require("./middleware/auth");
 
 const app = express();
-app.use(cors());
+// In production, pin CORS to the deployed frontend. Without FRONTEND_URL set
+// (local dev) we allow any origin.
+app.use(cors(process.env.FRONTEND_URL ? { origin: process.env.FRONTEND_URL } : {}));
 app.use(express.json());
 
 // Reject malformed :id route params with 400 instead of letting a Mongoose
@@ -27,10 +29,14 @@ app.param("id", (req, res, next, id) => {
   next();
 });
 
-const redis = new Redis({
-  host: process.env.REDIS_HOST || "127.0.0.1",
-  port: process.env.REDIS_PORT || 6379,
-});
+// Managed Redis (e.g. Render Key Value) hands out a single connection URL;
+// locally we fall back to host/port.
+const redis = process.env.REDIS_URL
+  ? new Redis(process.env.REDIS_URL)
+  : new Redis({
+      host: process.env.REDIS_HOST || "127.0.0.1",
+      port: process.env.REDIS_PORT || 6379,
+    });
 
 // ==========================================
 // 🔐 AUTHENTICATION ROUTES
