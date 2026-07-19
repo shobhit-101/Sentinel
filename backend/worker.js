@@ -1,4 +1,5 @@
 require("dotenv").config();
+const os = require("os");
 const mongoose = require("mongoose");
 const Redis = require("ioredis");
 const Job = require("./models/Job");
@@ -48,7 +49,10 @@ const redis = process.env.REDIS_URL
     });
 
 const GROUP_NAME = "sentinel_workers";
-const CONSUMER_NAME = "worker_1";
+// Unique per instance so the worker scales horizontally: bump the Render worker
+// service to N instances and each joins the group as a distinct consumer, so
+// Redis distributes messages across them with no collision. One instance today.
+const CONSUMER_NAME = process.env.CONSUMER_NAME || `${os.hostname()}-${process.pid}`;
 
 // Distinguish transient (retry) vs permanent (fail fast) errors.
 // Conservative: retry only when we recognize a transient signal.
